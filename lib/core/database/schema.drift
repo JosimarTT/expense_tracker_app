@@ -1,0 +1,90 @@
+CREATE TABLE profiles (
+    profile_id TEXT NOT NULL PRIMARY KEY CHECK (length(trim(profile_id)) > 0),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    currency_code TEXT NOT NULL CHECK (length(currency_code) = 3 AND currency_code GLOB '[A-Z][A-Z][A-Z]'),
+    currency_scale INTEGER NOT NULL CHECK (currency_scale BETWEEN 0 AND 4),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    local_revision INTEGER NOT NULL DEFAULT 1 CHECK (local_revision > 0),
+    is_synced INTEGER NOT NULL DEFAULT 0 CHECK (is_synced IN (0, 1))
+);
+
+CREATE TABLE categories (
+    profile_id TEXT NOT NULL REFERENCES profiles(profile_id),
+    category_id TEXT NOT NULL CHECK (length(trim(category_id)) > 0),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    local_revision INTEGER NOT NULL DEFAULT 1 CHECK (local_revision > 0),
+    is_synced INTEGER NOT NULL DEFAULT 0 CHECK (is_synced IN (0, 1)),
+    PRIMARY KEY (profile_id, category_id),
+    UNIQUE (profile_id, category_id, type)
+);
+
+CREATE TABLE transactions (
+    profile_id TEXT NOT NULL REFERENCES profiles(profile_id),
+    transaction_id TEXT NOT NULL CHECK (length(trim(transaction_id)) > 0),
+    title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+    amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+    type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+    category_id TEXT NOT NULL,
+    occurred_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    local_revision INTEGER NOT NULL DEFAULT 1 CHECK (local_revision > 0),
+    is_synced INTEGER NOT NULL DEFAULT 0 CHECK (is_synced IN (0, 1)),
+    PRIMARY KEY (profile_id, transaction_id),
+    FOREIGN KEY (profile_id, category_id, type)
+        REFERENCES categories(profile_id, category_id, type)
+);
+
+CREATE INDEX transactions_profile_date ON transactions(profile_id, occurred_at);
+
+CREATE TABLE budgets (
+    profile_id TEXT NOT NULL REFERENCES profiles(profile_id),
+    budget_id TEXT NOT NULL CHECK (length(trim(budget_id)) > 0),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    period_start INTEGER NOT NULL,
+    period_end INTEGER NOT NULL CHECK (period_end > period_start),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    local_revision INTEGER NOT NULL DEFAULT 1 CHECK (local_revision > 0),
+    is_synced INTEGER NOT NULL DEFAULT 0 CHECK (is_synced IN (0, 1)),
+    PRIMARY KEY (profile_id, budget_id)
+);
+
+CREATE TABLE budget_buckets (
+    profile_id TEXT NOT NULL,
+    budget_id TEXT NOT NULL,
+    bucket_id TEXT NOT NULL CHECK (length(trim(bucket_id)) > 0),
+    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+    allocation_bps INTEGER NOT NULL CHECK (allocation_bps BETWEEN 0 AND 10000),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    local_revision INTEGER NOT NULL DEFAULT 1 CHECK (local_revision > 0),
+    is_synced INTEGER NOT NULL DEFAULT 0 CHECK (is_synced IN (0, 1)),
+    PRIMARY KEY (profile_id, budget_id, bucket_id),
+    FOREIGN KEY (profile_id, budget_id) REFERENCES budgets(profile_id, budget_id)
+);
+
+CREATE TABLE budget_category_allocations (
+    profile_id TEXT NOT NULL,
+    budget_id TEXT NOT NULL,
+    bucket_id TEXT NOT NULL,
+    category_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    local_revision INTEGER NOT NULL DEFAULT 1 CHECK (local_revision > 0),
+    is_synced INTEGER NOT NULL DEFAULT 0 CHECK (is_synced IN (0, 1)),
+    PRIMARY KEY (profile_id, budget_id, category_id),
+    FOREIGN KEY (profile_id, budget_id, bucket_id)
+        REFERENCES budget_buckets(profile_id, budget_id, bucket_id),
+    FOREIGN KEY (profile_id, category_id) REFERENCES categories(profile_id, category_id)
+);
