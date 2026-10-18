@@ -30,4 +30,5 @@ abstract interface class ProfileRepository {
   Stream<List<LocalProfile>> watchProfiles();
   Stream<List<TransactionCategory>> watchCategories(String profileId);
   Future<void> create(LocalProfile profile);
+  Future<void> deletePermanently(String profileId);
 }

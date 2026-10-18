@@ -58,6 +58,110 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
   });
 
+  testWidgets(
+    'Profile deletion requires exact DELETE and cancellation preserves data',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await tester.runAsync(() async {
+        await LocalProfileRepository(db).create(
+          const LocalProfile(
+            id: 'profile',
+            name: 'Personal',
+            currencyCode: 'USD',
+            currencyScale: 2,
+          ),
+        );
+        await LocalTransactionRepository(db).save(
+          FinancialTransaction(
+            id: 'transaction',
+            profileId: 'profile',
+            title: 'Lunch',
+            amountMinor: 1250,
+            type: TransactionType.expense,
+            categoryId: 'groceries',
+            occurredAt: DateTime.now(),
+          ),
+        );
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: const ExpenseTrackerApp(),
+        ),
+      );
+      await settleDatabase(tester);
+      await tester.tap(find.byKey(const Key('delete-profile')));
+      await tester.pumpAndSettle();
+      expect(find.text('Permanently delete profile?'), findsOneWidget);
+      expect(
+        find.textContaining('permanently erase all of its'),
+        findsOneWidget,
+      );
+      final confirmationButton = tester.widget<FilledButton>(
+        find.byKey(const Key('confirm-delete-profile')),
+      );
+      expect(confirmationButton.onPressed, isNull);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirmation'),
+        'delete',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('confirm-delete-profile')),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(
+        await tester.runAsync(() => db.select(db.profiles).get()),
+        hasLength(1),
+      );
+      expect(
+        await tester.runAsync(() => db.select(db.transactions).get()),
+        hasLength(1),
+      );
+
+      await tester.tap(find.byKey(const Key('delete-profile')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirmation'),
+        'DELETE',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('confirm-delete-profile')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      await tester.tap(find.byKey(const Key('confirm-delete-profile')));
+      await settleDatabase(tester);
+      expect(find.text('Create your first profile'), findsOneWidget);
+      expect(
+        await tester.runAsync(() => db.select(db.profiles).get()),
+        isEmpty,
+      );
+      expect(
+        await tester.runAsync(() => db.select(db.transactions).get()),
+        isEmpty,
+      );
+      expect(
+        await tester.runAsync(() => db.select(db.categories).get()),
+        isEmpty,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
+
   testWidgets('Creates a profile, adds an expense and saves a custom budget', (
     tester,
   ) async {

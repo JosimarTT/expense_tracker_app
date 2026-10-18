@@ -20,6 +20,8 @@ The local MVP now includes:
    and a savings target. There is no bank balance or savings-transfer tracking.
 5. Atomic budget storage, revisions/tombstones, and a development-only sync
    interface/mock preview. No schema change was necessary from version 1.
+6. Permanent profile deletion with an exact `DELETE` confirmation and atomic
+   removal of that profile's transactions, categories, and budgets.
 
 Next milestones are custom category management, backup/export and restore,
 pagination and date-indexed reporting for large histories, on-device lifecycle

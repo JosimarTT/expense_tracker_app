@@ -58,36 +58,108 @@ class LocalProfileRepository implements ProfileRepository {
     }
     return _database.transaction(() async {
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-      await _database.into(_database.profiles).insert(
-        ProfilesCompanion.insert(
-          profileId: profile.id,
-          name: profile.name.trim(),
-          currencyCode: profile.currencyCode,
-          currencyScale: profile.currencyScale,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
+      await _database
+          .into(_database.profiles)
+          .insert(
+            ProfilesCompanion.insert(
+              profileId: profile.id,
+              name: profile.name.trim(),
+              currencyCode: profile.currencyCode,
+              currencyScale: profile.currencyScale,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
       for (final category in const [
-        TransactionCategory(id: 'salary', name: 'Salary', type: TransactionType.income),
-        TransactionCategory(id: 'other_income', name: 'Other income', type: TransactionType.income),
-        TransactionCategory(id: 'housing', name: 'Housing', type: TransactionType.expense),
-        TransactionCategory(id: 'groceries', name: 'Groceries', type: TransactionType.expense),
-        TransactionCategory(id: 'transport', name: 'Transport', type: TransactionType.expense),
-        TransactionCategory(id: 'dining', name: 'Dining out', type: TransactionType.expense),
-        TransactionCategory(id: 'entertainment', name: 'Entertainment', type: TransactionType.expense),
-        TransactionCategory(id: 'other_expense', name: 'Other expense', type: TransactionType.expense),
+        TransactionCategory(
+          id: 'salary',
+          name: 'Salary',
+          type: TransactionType.income,
+        ),
+        TransactionCategory(
+          id: 'other_income',
+          name: 'Other income',
+          type: TransactionType.income,
+        ),
+        TransactionCategory(
+          id: 'housing',
+          name: 'Housing',
+          type: TransactionType.expense,
+        ),
+        TransactionCategory(
+          id: 'groceries',
+          name: 'Groceries',
+          type: TransactionType.expense,
+        ),
+        TransactionCategory(
+          id: 'transport',
+          name: 'Transport',
+          type: TransactionType.expense,
+        ),
+        TransactionCategory(
+          id: 'dining',
+          name: 'Dining out',
+          type: TransactionType.expense,
+        ),
+        TransactionCategory(
+          id: 'entertainment',
+          name: 'Entertainment',
+          type: TransactionType.expense,
+        ),
+        TransactionCategory(
+          id: 'other_expense',
+          name: 'Other expense',
+          type: TransactionType.expense,
+        ),
       ]) {
-        await _database.into(_database.categories).insert(
-          CategoriesCompanion.insert(
-            profileId: profile.id,
-            categoryId: category.id,
-            name: category.name,
-            type: category.type.name,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+        await _database
+            .into(_database.categories)
+            .insert(
+              CategoriesCompanion.insert(
+                profileId: profile.id,
+                categoryId: category.id,
+                name: category.name,
+                type: category.type.name,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      }
+    });
+  }
+
+  @override
+  Future<void> deletePermanently(String profileId) {
+    if (profileId.trim().isEmpty) {
+      throw ArgumentError('A profile is required.');
+    }
+    return _database.transaction(() async {
+      final exists = await (_database.select(
+        _database.profiles,
+      )..where((row) => row.profileId.equals(profileId))).getSingleOrNull();
+      if (exists == null) {
+        throw StateError('The selected profile no longer exists.');
+      }
+      await (_database.delete(
+        _database.budgetCategoryAllocations,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      await (_database.delete(
+        _database.budgetBuckets,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      await (_database.delete(
+        _database.budgets,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      await (_database.delete(
+        _database.transactions,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      await (_database.delete(
+        _database.categories,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      final deleted = await (_database.delete(
+        _database.profiles,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      if (deleted != 1) {
+        throw StateError('The profile was not deleted.');
       }
     });
   }
