@@ -6,21 +6,26 @@ it will not require rewriting the UI to read a remote database.
 
 ## Deliverable and scope
 
-This is a compiling architecture scaffold, not a finished expense tracker.
-Included: the mobile database opener, version-one relational schema, transaction
-repository implementation and reactive provider, budget domain validation,
-dependency composition, a clearly labeled placeholder screen, and automated tests.
+The local MVP now includes:
 
-Next MVP milestones:
+1. Profile creation/selection, with USD/EUR/GBP currencies and eight starter
+   categories per profile. Currency is fixed after creation. The active selection
+   is session-local; startup selects the first profile.
+2. Income/expense creation, editing by tapping a transaction, confirmed deletion,
+   exact decimal amount input, category selection, and date selection.
+3. A reactive monthly dashboard with income, expenses, net income, month
+   navigation, explicit errors/retry, and profile-isolated transaction lists.
+4. An editable monthly Needs/Wants/Savings split (50/30/20 initially), expense
+   category mappings, progress bars, overspending amounts, unallocated expenses,
+   and a savings target. There is no bank balance or savings-transfer tracking.
+5. Atomic budget storage, revisions/tombstones, and a development-only sync
+   interface/mock preview. No schema change was necessary from version 1.
 
-1. Profile creation/selection, currency selection, and category management.
-2. Income/expense entry, edit/delete, lists, date filters, and validation feedback.
-3. Dashboard totals and category charts, derived from local transaction streams.
-4. Atomic budget persistence, custom bucket/category editor, and actual-vs-target UI.
-5. Backup/export and restore, plus on-device persistence and migration testing.
-
-Cloud sync, authentication, subscriptions, tenant memberships, shared editing,
-bank integrations, transfers, and multi-currency conversion are not implemented.
+Next milestones are custom category management, backup/export and restore,
+pagination and date-indexed reporting for large histories, on-device lifecycle
+testing, and migration testing. Real cloud sync, authentication, subscriptions,
+tenant memberships, shared editing, OCR, bank integrations, transfers, and
+multi-currency conversion are not implemented.
 
 ## Technology decisions
 
@@ -29,8 +34,8 @@ bank integrations, transfers, and multi-currency conversion are not implemented.
 | State and dependency injection | `flutter_riverpod` | Typed providers, scoped overrides for tests, asynchronous streams, no extra DI container. Use Notifiers for future form/actions state. Bloc is also viable for a team preferring explicit event/state contracts, but do not mix both by default. |
 | Local SQL | `drift` + `drift_flutter` | SQLite with generated types, reactive queries, transactions, and migration tooling. Prefer it to manually mapping `sqflite` results as the relational model grows. |
 | IDs | `uuid` | Generate UUID v4 on-device before persistence; no dependency on server-generated IDs. |
-| Charts | `fl_chart` | Planned dashboard visualizations; not used by the placeholder yet. |
-| Formatting | `intl` | Planned locale-aware currency/date presentation; not a money calculation engine. |
+| Charts | Flutter progress indicators | Sufficient for current budget progress; `fl_chart` remains available for future trend/ring charts. |
+| Formatting | `intl` | Locale-aware grouping and dates; integer arithmetic preserves currency fractions without converting money to doubles. Input currently uses a dot decimal separator and rejects grouping separators. |
 | Code generation | `drift_dev` + `build_runner` | Generate and statically check database bindings. Riverpod uses manual providers, with no generator required. |
 
 Versions were checked against pub.dev when creating the scaffold. The
@@ -56,7 +61,14 @@ lib/
       app_database.dart             # Connection and schema lifecycle
       app_database.g.dart           # Generated; never edit manually
       schema.drift                  # Shared relational schema and indexes
+    money/
+      decimal_input.dart            # Exact decimal -> scaled integer parsing
+      money_format.dart             # Currency display without losing cents
   features/
+    profiles/
+      domain/profile.dart           # Profile/category models and repository
+      data/local_profile_repository.dart
+      presentation/profile_dialog.dart
     transactions/
       domain/
         entities/financial_transaction.dart
@@ -65,26 +77,38 @@ lib/
         repositories/local_transaction_repository.dart
       presentation/
         providers/transaction_providers.dart
+        transaction_dialog.dart
     budgets/
       domain/
+        budget_calculator.dart
         entities/budget_rule.dart
         repositories/budget_repository.dart
+      data/local_budget_repository.dart
+      presentation/budget_dialog.dart
+    sync/
+      domain/sync_repository.dart
+      data/mock_cloud_sync_service.dart
     dashboard/
       presentation/
         dashboard_page.dart
 test/
   core/database/schema_test.dart
+  core/money/decimal_input_test.dart
   features/
     transactions/data/local_transaction_repository_test.dart
     budgets/domain/budget_rule_test.dart
+    budgets/domain/budget_calculator_test.dart
+    budgets/data/local_budget_repository_test.dart
+    sync/mock_cloud_sync_service_test.dart
   widget_test.dart
 ```
 
 Create additional feature layers when they have real code; avoid empty folders
 or a pass-through use-case class for every repository method. Add domain use cases
-for actual workflows, such as applying a budget or creating a profile with its
-default categories. The budget repository is deliberately a contract only at this
-stage; it has no provider or concrete implementation.
+for actual workflows when they grow beyond one repository operation. Profile
+creation and starter category seeding are one atomic repository operation.
+Budget saves update the parent, bucket matrix, and category mappings atomically;
+removed children are tombstoned rather than physically deleted.
 
 ### Dependency direction
 
@@ -118,9 +142,11 @@ validation/storage failures and show actionable feedback, not report success.
   financial records exist; future conversion needs an explicit migration/workflow.
 - UTC Unix milliseconds are stored in all timestamp fields. `occurred_at` is
   the financial date/time; `created_at`/`updated_at` are storage metadata.
-- Reporting periods are half-open `[start, end)`. Future UI logic must compute
-  period boundaries in the user's reporting timezone, then convert to UTC;
-  a UTC midnight is not always a local midnight.
+- Reporting periods are half-open `[start, end)`. The dashboard builds calendar
+  month boundaries in the device's local timezone, then converts to UTC. Stored
+  budgets retain their original UTC bounds; cross-timezone travel may require
+  creating a different period, and overlapping periods are rejected. A fixed
+  per-profile reporting timezone is a future extension.
 
 ### Tables
 
@@ -144,16 +170,27 @@ counts, and efficient joins for actual spending. Percentages use basis points:
 5000/3000/2000 represents 50/30/20, and 6525 represents 65.25%.
 
 `BudgetRule` enforces that a complete rule totals exactly 10000 basis points,
-has unique buckets and category assignments, and has a valid period. The future
-budget repository must save the parent, buckets, and mappings in one transaction,
-and reconstruct through that validator on read. SQL constrains individual rows;
+has unique buckets and category assignments, and has a valid period. The
+budget repository saves the parent, buckets, and mappings in one transaction,
+and reconstructs through that validator on read. SQL constrains individual rows;
 it intentionally does **not** enforce a cross-row 100% total. Raw writes bypassing
 the domain must not be used for application budget operations.
 
-Initially, budget targets should use actual income in the selected period and
-expense-category mappings. Define rollover, overlapping-rule selection, zero
-income behavior, and minor-unit remainder allocation before building that UI.
-Savings is an allocation target, not automatically an expense. True savings
+Budget targets use actual income in the selected period and expense-category
+mappings. Overlapping active rules in one profile are rejected. There is no
+rollover. Zero income means zero limits, not division by zero; spending beyond
+zero is explicitly over budget. Largest-remainder rounding distributes every
+minor unit exactly, with ties broken by bucket ID. Intermediate percentage
+multiplication uses BigInt to avoid overflow. The dashboard shows exact monthly
+rules; non-monthly rules remain supported by the repository/calculator but do
+not get implicitly applied to a different dashboard period.
+Aggregate totals outside the supported signed 64-bit range are explicitly
+reported instead of wrapping; entries remain editable so the user can correct
+the data.
+
+The current editor exposes Needs/Wants/Savings with user-defined percentages and
+Needs/Wants/unassigned mappings. The domain/database remain flexible enough for
+arbitrary buckets. Savings is an allocation target, not automatically an expense. True savings
 account transfers require an accounts/transfer model and must not be counted as
 spending or new income.
 
@@ -202,7 +239,28 @@ Before enabling cloud writes, add:
    financial records. Handle sign-out, local-data retention, and account binding
    explicitly to avoid uploading one profile into the wrong account.
 
-Do not ship dummy authentication/sync implementations returning success.
+### Sync preview contract
+
+`SyncRepository` exposes `uploadUnsyncedTransactions(profileId:)` and
+`downloadRemoteChanges(profileId:, cursor:)`. `MockCloudSyncService` implements
+both **for development previews only**, and is deliberately not wired into
+production providers or the dashboard:
+
+- Upload reads profile-scoped `is_synced = 0` rows, including tombstones, into
+  an ephemeral in-memory remote simulation.
+- Download returns profile-scoped delta previews and a mock cursor. Cursors from
+  another profile and malformed/out-of-range cursors are rejected.
+- Divergent same-ID records are returned as explicit conflicts; client
+  `updated_at` is not considered authority. There is no automatic LWW.
+- Every result is labeled `isPreview = true`. The mock never sets `is_synced = 1`,
+  applies remote records to SQLite, or calls a network service. Losing/recreating
+  the mock loses its remote data/cursors. A preview cursor is not a durable
+  acknowledgment or production sync protocol.
+
+The production implementation still needs dependency replication (profiles and
+categories before transactions), outbox/server concurrency controls, durable
+cursor storage, entitlement checks, and conflict-resolution UX. Do not expose
+the mock as a working Pro sync feature or ship dummy authentication returning success.
 SQLite is not encrypted by this scaffold; evaluate encryption, secure key
 storage, OS backup behavior, export consent, and financial-data-safe telemetry
 before production. Never log transaction titles, amounts, or account identifiers
@@ -225,8 +283,10 @@ the user's database to resolve migrations.
 
 Tests cover profile isolation, cross-profile foreign-key rejection, exact money
 storage, category type enforcement, reactive updates, revision/dirty tracking,
-tombstones, budget percentages/category uniqueness, and the placeholder screen.
-In-memory SQLite tests do not replace on-device reopen/persistence tests,
+tombstones, atomic budget operations, percentages/category uniqueness, budget
+math/rounding/boundaries, sync previews/conflicts, profile switching, and UI
+creation/entry flows. A file-backed SQLite test verifies close/reopen persistence.
+Host SQLite tests do not replace Android/iOS on-device persistence tests,
 OS lifecycle testing, backups, or future migration tests. The native opener also
 supports desktop, but desktop is not an MVP commitment. Web needs a separate
 WASM/worker and browser-persistence setup; do not advertise web support yet.

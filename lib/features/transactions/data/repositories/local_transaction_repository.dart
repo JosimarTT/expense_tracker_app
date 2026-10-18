@@ -42,6 +42,20 @@ class LocalTransactionRepository implements TransactionRepository {
   @override
   Future<void> save(FinancialTransaction transaction) {
     return _database.transaction(() async {
+      final profile = await (_database.select(_database.profiles)
+            ..where((row) => row.profileId.equals(transaction.profileId) & row.deletedAt.isNull()))
+          .getSingleOrNull();
+      final category = await (_database.select(_database.categories)
+            ..where((row) =>
+                row.profileId.equals(transaction.profileId) &
+                row.categoryId.equals(transaction.categoryId)))
+          .getSingleOrNull();
+      if (profile == null) {
+        throw StateError('The selected profile is no longer active.');
+      }
+      if (category?.deletedAt != null) {
+        throw StateError('The selected category is no longer active.');
+      }
       final existing = await (_database.select(_database.transactions)
             ..where(
               (row) =>
