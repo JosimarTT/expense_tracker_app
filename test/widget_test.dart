@@ -10,6 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+bool isUuidV7(String id) => RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+).hasMatch(id);
+
 Future<void> settleDatabase(WidgetTester tester) async {
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 50)),
@@ -75,6 +79,10 @@ void main() {
     await tester.tap(find.text('Create'));
     await settleDatabase(tester);
     expect(find.text('Personal (USD)'), findsOneWidget);
+    final profile = await tester.runAsync(
+      () => db.select(db.profiles).getSingle(),
+    );
+    expect(isUuidV7(profile!.profileId), isTrue);
     await tester.tap(find.text('Add transaction'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Lunch');
@@ -86,6 +94,10 @@ void main() {
     await settleDatabase(tester);
     expect(find.text('Lunch'), findsOneWidget);
     expect(find.text('Expenses: USD 12.50'), findsOneWidget);
+    final transaction = await tester.runAsync(
+      () => db.select(db.transactions).getSingle(),
+    );
+    expect(isUuidV7(transaction!.transactionId), isTrue);
     await tester.tap(find.text('Set monthly budget'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Needs (%)'), '60');
@@ -119,6 +131,10 @@ void main() {
       await tester.runAsync(() => db.select(db.budgets).get()),
       hasLength(1),
     );
+    final budget = await tester.runAsync(
+      () => db.select(db.budgets).getSingle(),
+    );
+    expect(isUuidV7(budget!.budgetId), isTrue);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();

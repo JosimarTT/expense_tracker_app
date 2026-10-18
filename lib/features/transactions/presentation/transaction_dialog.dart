@@ -52,7 +52,7 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
     setState(() { _saving = true; _error = null; });
     try {
       final value = FinancialTransaction(
-        id: widget.existing?.id ?? ref.read(uuidProvider).v4(),
+        id: widget.existing?.id ?? ref.read(idGeneratorProvider).generate(),
         profileId: widget.profile.id,
         title: _title.text,
         amountMinor: parseScaledDecimal(_amount.text, widget.profile.currencyScale),

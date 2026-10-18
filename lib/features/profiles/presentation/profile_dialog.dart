@@ -31,7 +31,7 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
     setState(() { _saving = true; _error = null; });
     try {
       final profile = LocalProfile(
-        id: ref.read(uuidProvider).v4(),
+        id: ref.read(idGeneratorProvider).generate(),
         name: _name.text.trim(),
         currencyCode: _currency,
         currencyScale: 2,

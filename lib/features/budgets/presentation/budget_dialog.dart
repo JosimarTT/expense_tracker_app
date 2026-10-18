@@ -54,7 +54,7 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
     setState(() { _saving = true; _error = null; });
     try {
       final rule = BudgetRule(
-        id: widget.existing?.id ?? ref.read(uuidProvider).v4(),
+        id: widget.existing?.id ?? ref.read(idGeneratorProvider).generate(),
         profileId: widget.profileId,
         name: widget.existing?.name ?? 'Monthly allocation',
         periodStart: DateTime(widget.month.year, widget.month.month),

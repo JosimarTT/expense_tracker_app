@@ -33,7 +33,7 @@ multi-currency conversion are not implemented.
 | --- | --- | --- |
 | State and dependency injection | `flutter_riverpod` | Typed providers, scoped overrides for tests, asynchronous streams, no extra DI container. Use Notifiers for future form/actions state. Bloc is also viable for a team preferring explicit event/state contracts, but do not mix both by default. |
 | Local SQL | `drift` + `drift_flutter` | SQLite with generated types, reactive queries, transactions, and migration tooling. Prefer it to manually mapping `sqflite` results as the relational model grows. |
-| IDs | `uuid` | Generate UUID v4 on-device before persistence; no dependency on server-generated IDs. |
+| IDs | `uuid` v7 | Generate time-ordered, globally unique IDs on-device before persistence; no dependency on server-generated IDs. |
 | Charts | Flutter progress indicators | Sufficient for current budget progress; `fl_chart` remains available for future trend/ring charts. |
 | Formatting | `intl` | Locale-aware grouping and dates; integer arithmetic preserves currency fractions without converting money to doubles. Input currently uses a dot decimal separator and rejects grouping separators. |
 | Code generation | `drift_dev` + `build_runner` | Generate and statically check database bindings. Riverpod uses manual providers, with no generator required. |
@@ -195,6 +195,15 @@ account transfers require an accounts/transfer model and must not be counted as
 spending or new income.
 
 ### Change metadata
+
+Generated profile, transaction, and budget IDs use standard UUIDv7 strings.
+Their leading timestamp bytes make lexicographic ordering approximately
+chronological across different generation milliseconds. The random portion
+means UUIDv7 IDs produced within the same millisecond are not guaranteed to
+reflect strict generation order. IDs are opaque keys, not authoritative event
+timestamps; sort transactions and audit events by their explicit time fields.
+Existing UUIDv4 IDs remain valid and unchanged: IDs are not regenerated on
+startup, and this switch needs no schema migration.
 
 Each mutable table includes:
 

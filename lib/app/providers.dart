@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
-
 import '../core/database/app_database.dart';
+import '../core/ids/id_generator.dart';
 import '../features/transactions/data/repositories/local_transaction_repository.dart';
 import '../features/transactions/domain/repositories/transaction_repository.dart';
 import '../features/profiles/data/local_profile_repository.dart';
@@ -18,7 +17,9 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return database;
 });
 
-final uuidProvider = Provider<Uuid>((ref) => const Uuid());
+final idGeneratorProvider = Provider<IdGenerator>(
+  (ref) => UuidV7IdGenerator(),
+);
 
 final transactionRepositoryProvider = Provider<TransactionRepository>(
   (ref) => LocalTransactionRepository(ref.watch(databaseProvider)),
