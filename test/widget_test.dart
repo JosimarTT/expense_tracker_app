@@ -22,6 +22,67 @@ Future<void> settleDatabase(WidgetTester tester) async {
 }
 
 void main() {
+  for (final (query, code, name, scale) in [
+    ('Peru', 'PEN', 'Peruvian sol', 2),
+    ('yen', 'JPY', 'Japanese yen', 0),
+    ('KWD', 'KWD', 'Kuwaiti dinar', 3),
+  ]) {
+    testWidgets('Searches currency by $query and creates a $code profile', (
+      tester,
+    ) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: const ExpenseTrackerApp(),
+        ),
+      );
+      await settleDatabase(tester);
+      await tester.tap(find.text('Create your first profile'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Profile name'),
+        'Personal',
+      );
+      await tester.tap(find.byKey(const Key('profile-currency')));
+      await tester.pumpAndSettle();
+      final search = find.widgetWithText(TextField, 'Search currencies');
+      await tester.enterText(search, 'not a currency');
+      await tester.pumpAndSettle();
+      expect(find.text('No matching currencies.'), findsOneWidget);
+      await tester.enterText(search, query);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('$code - $name'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create'));
+      await settleDatabase(tester);
+      expect(find.text('Personal ($code)'), findsOneWidget);
+      final profile = await tester.runAsync(
+        () => db.select(db.profiles).getSingle(),
+      );
+      expect(profile!.currencyCode, code);
+      expect(profile.currencyScale, scale);
+      await tester.tap(find.text('Add transaction'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Amount ($code)'),
+        scale == 0 ? '123' : (scale == 3 ? '12.345' : '12.34'),
+      );
+      await tester.tap(find.text('Save'));
+      await settleDatabase(tester);
+      final transaction = await tester.runAsync(
+        () => db.select(db.transactions).getSingle(),
+      );
+      expect(
+        transaction!.amountMinor,
+        scale == 0 ? 123 : (scale == 3 ? 12345 : 1234),
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    });
+  }
+
   testWidgets('Empty installation offers profile creation', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -239,7 +300,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await settleDatabase(tester);
     expect(find.text('Lunch with a friend'), findsOneWidget);
-    expect(find.text('Expenses: USD 12.50'), findsOneWidget);
+    expect(find.text(r'Expenses: $12.50'), findsOneWidget);
     final transaction = await tester.runAsync(
       () => db.select(db.transactions).getSingle(),
     );
@@ -251,7 +312,7 @@ void main() {
     await tester.tap(find.text('Save budget'));
     await settleDatabase(tester);
     expect(find.text('Needs (60.0%)'), findsOneWidget);
-    expect(find.text('Savings target: USD 0.00'), findsOneWidget);
+    expect(find.text(r'Savings target: $0.00'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsOneWidget);
     await tester.ensureVisible(find.text('Add transaction'));
     await tester.tap(find.text('Add transaction'));
@@ -272,11 +333,11 @@ void main() {
     await settleDatabase(tester);
     await tester.drag(find.byType(ListView).first, const Offset(0, 500));
     await tester.pumpAndSettle();
-    expect(find.text('Income: USD 1,000.00'), findsOneWidget);
-    expect(find.text('Savings target: USD 200.00'), findsOneWidget);
+    expect(find.text(r'Income: $1,000.00'), findsOneWidget);
+    expect(find.text(r'Savings target: $200.00'), findsOneWidget);
     await tester.drag(find.byType(ListView).first, const Offset(0, -500));
     await tester.pumpAndSettle();
-    expect(find.text('USD 12.50 of USD 200.00'), findsOneWidget);
+    expect(find.text(r'$12.50 of $200.00'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsNothing);
     expect(
       await tester.runAsync(() => db.select(db.budgets).get()),
@@ -341,7 +402,7 @@ void main() {
       await settleDatabase(tester);
       expect(find.text('Household purchase'), findsOneWidget);
       expect(find.text('Personal purchase'), findsNothing);
-      expect(find.text('Expenses: USD 2.00'), findsOneWidget);
+      expect(find.text(r'Expenses: $2.00'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();

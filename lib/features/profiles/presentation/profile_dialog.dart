@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../core/money/currency.dart';
 import '../domain/profile.dart';
+import 'currency_picker_dialog.dart';
 
 class ProfileDialog extends ConsumerStatefulWidget {
   const ProfileDialog({super.key});
@@ -28,18 +30,26 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
       setState(() => _error = 'Enter a profile name.');
       return;
     }
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final profile = LocalProfile(
         id: ref.read(idGeneratorProvider).generate(),
         name: _name.text.trim(),
         currencyCode: _currency,
-        currencyScale: 2,
+        currencyScale: Currency.fromCode(_currency).scale,
       );
       await ref.read(profileRepositoryProvider).create(profile);
       if (mounted) Navigator.pop(context, profile.id);
     } on Object catch (error) {
-      if (mounted) setState(() { _saving = false; _error = 'Could not create profile: $error'; });
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not create profile: $error';
+        });
+      }
     }
   }
 
@@ -47,29 +57,54 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Create local profile'),
     content: SingleChildScrollView(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(
-          controller: _name,
-          enabled: !_saving,
-          decoration: const InputDecoration(labelText: 'Profile name'),
-        ),
-        DropdownButtonFormField<String>(
-          initialValue: _currency,
-          decoration: const InputDecoration(labelText: 'Currency'),
-          items: [
-            for (final currency in ['USD', 'EUR', 'GBP'])
-              DropdownMenuItem(value: currency, child: Text(currency)),
-          ],
-          onChanged: _saving ? null : (value) => setState(() => _currency = value!),
-        ),
-        const SizedBox(height: 8),
-        const Text('Currency is fixed for this profile. Data stays on this device.'),
-        if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _name,
+            enabled: !_saving,
+            decoration: const InputDecoration(labelText: 'Profile name'),
+          ),
+          ListTile(
+            key: const Key('profile-currency'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Currency'),
+            subtitle: Text('$_currency - ${Currency.fromCode(_currency).name}'),
+            trailing: const Icon(Icons.expand_more),
+            onTap: _saving
+                ? null
+                : () async {
+                    final selected = await showDialog<String>(
+                      context: context,
+                      builder: (_) =>
+                          CurrencyPickerDialog(selectedCode: _currency),
+                    );
+                    if (selected != null && mounted) {
+                      setState(() => _currency = selected);
+                    }
+                  },
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Currency is fixed for this profile. Data stays on this device.',
+          ),
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      ),
     ),
     actions: [
-      TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving...' : 'Create')),
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'Saving...' : 'Create'),
+      ),
     ],
   );
 }

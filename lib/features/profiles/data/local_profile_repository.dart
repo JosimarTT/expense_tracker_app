@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/money/currency.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../domain/category_options.dart';
 import '../domain/profile.dart';
@@ -55,9 +56,11 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
     if (profile.id.trim().isEmpty || profile.name.trim().isEmpty) {
       throw ArgumentError('Profile name and identifier are required.');
     }
-    if (!{'USD', 'EUR', 'GBP'}.contains(profile.currencyCode) ||
-        profile.currencyScale != 2) {
-      throw ArgumentError('The MVP supports USD, EUR and GBP with scale 2.');
+    final currency = Currency.fromCode(profile.currencyCode);
+    if (profile.currencyScale != currency.scale) {
+      throw ArgumentError(
+        '${currency.code} requires ${currency.scale} decimal places.',
+      );
     }
     return _database.transaction(() async {
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;

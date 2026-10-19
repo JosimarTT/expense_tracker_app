@@ -133,10 +133,14 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
           TextField(
             controller: _amount,
             enabled: !_saving,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: TextInputType.numberWithOptions(
+              decimal: widget.profile.currencyScale > 0,
+            ),
             decoration: InputDecoration(
               labelText: 'Amount (${widget.profile.currencyCode})',
-              helperText: 'Use a dot for decimals, e.g. 12.50',
+              helperText: widget.profile.currencyScale == 0
+                  ? 'Enter a whole number.'
+                  : 'Use a dot for decimals (up to ${widget.profile.currencyScale} places).',
             ),
           ),
           DropdownButtonFormField<TransactionType>(

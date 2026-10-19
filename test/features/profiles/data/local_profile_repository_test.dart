@@ -58,6 +58,52 @@ void main() {
   tearDown(() => db.close());
 
   test(
+    'Persists supported currencies with their required decimal precision',
+    () async {
+      for (final (code, scale) in [('PEN', 2), ('JPY', 0), ('KWD', 3)]) {
+        await repository.create(
+          LocalProfile(
+            id: code,
+            name: code,
+            currencyCode: code,
+            currencyScale: scale,
+          ),
+        );
+        final saved = (await repository.watchProfiles().first).singleWhere(
+          (profile) => profile.id == code,
+        );
+        expect(saved.currencyCode, code);
+        expect(saved.currencyScale, scale);
+      }
+    },
+  );
+
+  test(
+    'Rejects unsupported currencies and mismatched precision without writes',
+    () async {
+      for (final (code, scale) in [
+        ('XXX', 2),
+        ('JPY', 2),
+        ('PEN', 0),
+        ('KWD', 2),
+      ]) {
+        await expectLater(
+          () => repository.create(
+            LocalProfile(
+              id: code,
+              name: code,
+              currencyCode: code,
+              currencyScale: scale,
+            ),
+          ),
+          throwsArgumentError,
+        );
+      }
+      expect(await repository.watchProfiles().first, hasLength(2));
+    },
+  );
+
+  test(
     'Permanently deletes all profile data without affecting other profiles',
     () async {
       final budgets = LocalBudgetRepository(db);

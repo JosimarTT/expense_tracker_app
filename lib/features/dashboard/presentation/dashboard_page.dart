@@ -127,6 +127,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     minor,
     widget.profile.currencyCode,
     widget.profile.currencyScale,
+    locale: View.of(context).platformDispatcher.locale.toString(),
   );
 
   Future<void> _deleteProfile() async {

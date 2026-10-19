@@ -30,14 +30,11 @@ void main() {
     final previous = Intl.defaultLocale;
     Intl.defaultLocale = 'en_US';
     addTearDown(() => Intl.defaultLocale = previous);
-    expect(
-      formatMoney(9007199254740993, 'USD', 2),
-      'USD 90,071,992,547,409.93',
-    );
+    expect(formatMoney(9007199254740993, 'USD', 2), r'$90,071,992,547,409.93');
     expect(
       formatMoney(9223372036854775807, 'USD', 2),
-      'USD 92,233,720,368,547,758.07',
+      r'$92,233,720,368,547,758.07',
     );
-    expect(formatMoney(-1250, 'EUR', 2), '-EUR 12.50');
+    expect(formatMoney(-1250, 'EUR', 2), '-€12.50');
   });
 }
