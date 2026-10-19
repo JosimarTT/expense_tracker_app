@@ -160,7 +160,7 @@ void main() {
     await tester.tap(find.text('Show archived'));
     await settle(tester);
     final blockedDelete = find.byTooltip(
-      'Active transactions or budget mappings prevent permanent deletion',
+      'Active transactions, budget mappings, or schedules prevent permanent deletion',
     );
     expect(blockedDelete, findsOneWidget);
     expect(

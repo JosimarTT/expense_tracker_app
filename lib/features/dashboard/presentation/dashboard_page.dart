@@ -15,6 +15,8 @@ import '../../profiles/presentation/profile_dialog.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../../transactions/presentation/transaction_dialog.dart';
+import '../../schedules/presentation/schedule_processor.dart';
+import '../../schedules/presentation/schedules_page.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -75,35 +77,38 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           final selected =
               items.where((profile) => profile.id == _selectedId).firstOrNull ??
               items.first;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(selected.id),
-                  initialValue: selected.id,
-                  decoration: const InputDecoration(
-                    labelText: 'Active profile',
-                  ),
-                  items: [
-                    for (final profile in items)
-                      DropdownMenuItem(
-                        value: profile.id,
-                        child: Text(
-                          '${profile.name} (${profile.currencyCode})',
+          return ScheduleProcessor(
+            profiles: items,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey(selected.id),
+                    initialValue: selected.id,
+                    decoration: const InputDecoration(
+                      labelText: 'Active profile',
+                    ),
+                    items: [
+                      for (final profile in items)
+                        DropdownMenuItem(
+                          value: profile.id,
+                          child: Text(
+                            '${profile.name} (${profile.currencyCode})',
+                          ),
                         ),
-                      ),
-                  ],
-                  onChanged: (id) => setState(() => _selectedId = id),
+                    ],
+                    onChanged: (id) => setState(() => _selectedId = id),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _ProfileDashboard(
-                  key: ValueKey(selected.id),
-                  profile: selected,
+                Expanded(
+                  child: _ProfileDashboard(
+                    key: ValueKey(selected.id),
+                    profile: selected,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -318,6 +323,16 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           spacing: 8,
           runSpacing: 8,
           children: [
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SchedulesPage(profile: widget.profile),
+                ),
+              ),
+              icon: const Icon(Icons.event_repeat),
+              label: const Text('Scheduled transactions'),
+            ),
             OutlinedButton.icon(
               key: const Key('manage-categories'),
               onPressed: () => showDialog<void>(

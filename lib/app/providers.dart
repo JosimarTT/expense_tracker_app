@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/database/app_database.dart';
+
+import '../core/database/app_database.dart' hide TransactionSchedule;
+import '../features/schedules/data/local_schedule_repository.dart';
+import '../features/schedules/domain/transaction_schedule.dart';
 import '../core/ids/id_generator.dart';
 import '../features/transactions/data/repositories/local_transaction_repository.dart';
 import '../features/transactions/domain/repositories/transaction_repository.dart';
@@ -17,9 +20,20 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return database;
 });
 
-final idGeneratorProvider = Provider<IdGenerator>(
-  (ref) => UuidV7IdGenerator(),
+final idGeneratorProvider = Provider<IdGenerator>((ref) => UuidV7IdGenerator());
+
+final scheduleRepositoryProvider = Provider<ScheduleRepository>(
+  (ref) => LocalScheduleRepository(
+    ref.watch(databaseProvider),
+    ref.watch(idGeneratorProvider),
+  ),
 );
+
+final schedulesProvider = StreamProvider.autoDispose
+    .family<List<TransactionSchedule>, String>(
+      (ref, profileId) =>
+          ref.watch(scheduleRepositoryProvider).watchSchedules(profileId),
+    );
 
 final transactionRepositoryProvider = Provider<TransactionRepository>(
   (ref) => LocalTransactionRepository(ref.watch(databaseProvider)),
@@ -41,12 +55,14 @@ final profilesProvider = StreamProvider<List<LocalProfile>>(
   (ref) => ref.watch(profileRepositoryProvider).watchProfiles(),
 );
 
-final categoriesProvider =
-    StreamProvider.autoDispose.family<List<TransactionCategory>, String>(
+final categoriesProvider = StreamProvider.autoDispose
+    .family<List<TransactionCategory>, String>(
       (ref, profileId) =>
           ref.watch(profileRepositoryProvider).watchCategories(profileId),
     );
 
-final budgetsProvider = StreamProvider.autoDispose.family<List<BudgetRule>, String>(
-  (ref, profileId) => ref.watch(budgetRepositoryProvider).watchBudgets(profileId),
-);
+final budgetsProvider = StreamProvider.autoDispose
+    .family<List<BudgetRule>, String>(
+      (ref, profileId) =>
+          ref.watch(budgetRepositoryProvider).watchBudgets(profileId),
+    );

@@ -133,4 +133,51 @@ void main() {
       await directory.delete(recursive: true);
     }
   });
+
+  test(
+    'Adding scheduler tables to version 2 preserves existing profile data',
+    () async {
+      await database.close();
+      final directory = await Directory.systemTemp.createTemp(
+        'expense_scheduler_upgrade_',
+      );
+      final file = File(
+        '${directory.path}${Platform.pathSeparator}expenses.sqlite',
+      );
+      var prior = AppDatabase.forTesting(NativeDatabase(file));
+      try {
+        await prior
+            .into(prior.profiles)
+            .insert(
+              ProfilesCompanion.insert(
+                profileId: 'kept',
+                name: 'Existing',
+                currencyCode: 'PEN',
+                currencyScale: 2,
+                createdAt: 0,
+                updatedAt: 0,
+              ),
+            );
+        await prior.customStatement('DROP TABLE schedule_occurrences');
+        await prior.customStatement('DROP TABLE transaction_schedules');
+        await prior.customStatement('PRAGMA user_version = 2');
+        await prior.close();
+        prior = AppDatabase.forTesting(NativeDatabase(file));
+        expect(
+          (await prior.select(prior.profiles).get()).single.name,
+          'Existing',
+        );
+        expect(await prior.select(prior.transactionSchedules).get(), isEmpty);
+        expect(await prior.select(prior.scheduleOccurrences).get(), isEmpty);
+        expect(
+          (await prior.customSelect('PRAGMA foreign_keys').getSingle())
+              .read<int>('foreign_keys'),
+          1,
+        );
+      } finally {
+        await prior.close();
+        await directory.delete(recursive: true);
+      }
+    },
+  );
 }

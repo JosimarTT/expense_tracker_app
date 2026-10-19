@@ -91,7 +91,7 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
         title: const Text('Delete category permanently?'),
         content: Text(
           'Permanently delete "${category.name}"? This cannot be undone. '
-          'Categories with active transactions or budget mappings cannot be deleted. '
+          'Categories with active transactions, budget mappings, or schedules cannot be deleted. '
           'Previously deleted records linked to this category will also be permanently removed.',
         ),
         actions: [
@@ -197,7 +197,7 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
                                       : IconButton(
                                           tooltip: snapshot.data == true
                                               ? 'Delete ${category.name} permanently'
-                                              : 'Active transactions or budget mappings prevent permanent deletion',
+                                              : 'Active transactions, budget mappings, or schedules prevent permanent deletion',
                                           onPressed: snapshot.data == true
                                               ? () => _delete(
                                                   context,

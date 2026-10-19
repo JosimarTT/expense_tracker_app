@@ -229,9 +229,20 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
                 )
                 ..limit(1))
               .getSingleOrNull();
+      final scheduleReferences =
+          await (_database.select(_database.transactionSchedules)
+                ..where(
+                  (row) =>
+                      row.profileId.equals(profileId) &
+                      row.categoryId.equals(category.id),
+                )
+                ..limit(1))
+              .getSingleOrNull();
       if (existing != null &&
           existing.type != category.type.name &&
-          (referenced != null || budgetReferences != null)) {
+          (referenced != null ||
+              budgetReferences != null ||
+              scheduleReferences != null)) {
         throw StateError(
           'A category with transactions cannot change between income and expense. '
           'Archive it and create a new category instead.',
@@ -272,8 +283,12 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
         SELECT 1 FROM transactions WHERE profile_id = ? AND category_id = ? AND deleted_at IS NULL
         UNION ALL
         SELECT 1 FROM budget_category_allocations WHERE profile_id = ? AND category_id = ? AND deleted_at IS NULL
+        UNION ALL
+        SELECT 1 FROM transaction_schedules WHERE profile_id = ? AND category_id = ? AND deleted_at IS NULL
       ) AS referenced''',
           variables: [
+            Variable(profileId),
+            Variable(categoryId),
             Variable(profileId),
             Variable(categoryId),
             Variable(profileId),
@@ -282,6 +297,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
           readsFrom: {
             _database.transactions,
             _database.budgetCategoryAllocations,
+            _database.transactionSchedules,
           },
         )
         .getSingle();
@@ -341,10 +357,31 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
       if (category == null) throw StateError('No category found.');
       if (!await canDelete(profileId: profileId, categoryId: categoryId)) {
         throw StateError(
-          'This category has active transactions or budget mappings. Archive it instead.',
+          'This category has active transactions, budget mappings, or schedules. Archive it instead.',
         );
       }
       // Permanent category removal also purges its deleted dependents.
+      final deletedSchedules =
+          _database.selectOnly(_database.transactionSchedules)
+            ..addColumns([_database.transactionSchedules.scheduleId])
+            ..where(
+              _database.transactionSchedules.profileId.equals(profileId) &
+                  _database.transactionSchedules.categoryId.equals(categoryId) &
+                  _database.transactionSchedules.deletedAt.isNotNull(),
+            );
+      await (_database.delete(_database.scheduleOccurrences)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.scheduleId.isInQuery(deletedSchedules),
+          ))
+          .go();
+      await (_database.delete(_database.transactionSchedules)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.categoryId.equals(categoryId) &
+                row.deletedAt.isNotNull(),
+          ))
+          .go();
       await (_database.delete(_database.transactions)..where(
             (row) =>
                 row.profileId.equals(profileId) &
@@ -378,6 +415,12 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
       if (exists == null) {
         throw StateError('The selected profile no longer exists.');
       }
+      await (_database.delete(
+        _database.scheduleOccurrences,
+      )..where((row) => row.profileId.equals(profileId))).go();
+      await (_database.delete(
+        _database.transactionSchedules,
+      )..where((row) => row.profileId.equals(profileId))).go();
       await (_database.delete(
         _database.budgetCategoryAllocations,
       )..where((row) => row.profileId.equals(profileId))).go();
