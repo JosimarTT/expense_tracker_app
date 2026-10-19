@@ -191,11 +191,13 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
                               colorArgb: category.colorArgb,
                             ),
                             title: Text(category.name),
-                            subtitle: Text(
-                              '${category.type.label}'
-                              '${category.type == TransactionType.expense ? ' - ${category.defaultBudgetBucket == 'needs' ? 'Needs' : 'Wants'}' : ''}'
-                              '${category.isArchived ? ' - Archived' : ''}',
-                            ),
+                            subtitle: category.type == TransactionType.expense
+                                ? Text(
+                                    category.defaultBudgetBucket == 'needs'
+                                        ? 'Needs'
+                                        : 'Wants',
+                                  )
+                                : null,
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

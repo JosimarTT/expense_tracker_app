@@ -130,6 +130,11 @@ void main() {
       }
       for (final row in rows) {
         expect(row.leading, isA<CategoryAvatar>());
+        expect(
+          row.subtitle == null ||
+              const ['Needs', 'Wants'].contains((row.subtitle! as Text).data),
+          isTrue,
+        );
       }
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
@@ -188,6 +193,105 @@ void main() {
     },
   );
 
+  for (final editing in [false, true]) {
+    testWidgets(
+      '${editing ? 'Editing' : 'Creating'} a budget only exposes percentages and preserves category mapping',
+      (tester) async {
+        final budgets = LocalBudgetRepository(db);
+        final existing = editing
+            ? BudgetRule(
+                id: 'budget',
+                profileId: 'a',
+                name: 'Monthly',
+                periodStart: DateTime(2026, 10),
+                periodEnd: DateTime(2026, 11),
+                buckets: [
+                  BudgetBucket(id: 'needs', name: 'Needs', allocationBps: 5000),
+                  BudgetBucket(
+                    id: 'wants',
+                    name: 'Wants',
+                    allocationBps: 3000,
+                    categoryIds: ['groceries'],
+                  ),
+                  BudgetBucket(
+                    id: 'savings',
+                    name: 'Savings',
+                    allocationBps: 2000,
+                  ),
+                ],
+              )
+            : null;
+        final categories = await tester.runAsync(() async {
+          if (existing != null) await budgets.save(existing);
+          return profiles.watchCategories('a').first;
+        });
+        await open(
+          tester,
+          BudgetDialog(
+            profileId: 'a',
+            month: DateTime(2026, 10),
+            categories: categories!,
+            existing: existing,
+          ),
+        );
+        expect(find.byType(TextField), findsNWidgets(3));
+        expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+        expect(find.text('Expense category mapping'), findsNothing);
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Needs (%)'),
+          '60',
+        );
+        await tester.tap(find.text('Save budget'));
+        await settle(tester);
+        expect(find.textContaining('Could not save budget:'), findsOneWidget);
+        expect(
+          await tester.runAsync(() => budgets.watchBudgets('a').first),
+          hasLength(editing ? 1 : 0),
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Wants (%)'),
+          '20',
+        );
+        await tester.tap(find.text('Save budget'));
+        await settle(tester);
+        expect(find.text('Monthly budget'), findsNothing);
+        final saved = (await tester.runAsync(
+          () => budgets.watchBudgets('a').first,
+        ))!.single;
+        expect(
+          saved.buckets
+              .singleWhere((bucket) => bucket.id == 'needs')
+              .allocationBps,
+          6000,
+        );
+        expect(
+          saved.buckets
+              .singleWhere((bucket) => bucket.id == 'wants')
+              .allocationBps,
+          2000,
+        );
+        for (final bucket in saved.buckets) {
+          final expected = editing
+              ? existing!.buckets
+                    .singleWhere((entry) => entry.id == bucket.id)
+                    .categoryIds
+              : categories
+                    .where(
+                      (category) =>
+                          !category.isArchived &&
+                          category.type == TransactionType.expense &&
+                          category.defaultBudgetBucket == bucket.id,
+                    )
+                    .map((category) => category.id)
+                    .toSet();
+          expect(bucket.categoryIds, expected);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      },
+    );
+  }
+
   testWidgets('Saving budget percentages preserves hidden archived mappings', (
     tester,
   ) async {
@@ -227,10 +331,9 @@ void main() {
         existing: rule,
       ),
     );
-    expect(
-      find.widgetWithText(DropdownButtonFormField<String>, 'Groceries'),
-      findsNothing,
-    );
+    expect(find.byType(TextField), findsNWidgets(3));
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    expect(find.text('Expense category mapping'), findsNothing);
     await tester.enterText(find.widgetWithText(TextField, 'Needs (%)'), '60');
     await tester.enterText(find.widgetWithText(TextField, 'Wants (%)'), '20');
     await tester.tap(find.text('Save budget'));

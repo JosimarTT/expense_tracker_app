@@ -131,29 +131,6 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
                 ),
                 decoration: InputDecoration(labelText: '${_names[index]} (%)'),
               ),
-            const SizedBox(height: 16),
-            const Text('Expense category mapping'),
-            for (final category in widget.categories.where(
-              (category) =>
-                  category.type == TransactionType.expense &&
-                  !category.isArchived,
-            ))
-              DropdownButtonFormField<String>(
-                initialValue: _assignments[category.id],
-                decoration: InputDecoration(labelText: category.name),
-                items: const [
-                  DropdownMenuItem(value: 'needs', child: Text('Needs')),
-                  DropdownMenuItem(value: 'wants', child: Text('Wants')),
-                  DropdownMenuItem(
-                    value: 'unassigned',
-                    child: Text('Unassigned'),
-                  ),
-                ],
-                onChanged: _saving
-                    ? null
-                    : (value) =>
-                          setState(() => _assignments[category.id] = value!),
-              ),
             if (_error != null)
               Text(
                 _error!,
