@@ -53,7 +53,19 @@ void main() {
       expect(find.text('No matching currencies.'), findsOneWidget);
       await tester.enterText(search, query);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('$code - $name'));
+      final codeLabel = find.descendant(
+        of: find.byType(ListTile),
+        matching: find.text(code),
+      );
+      expect(codeLabel, findsOneWidget);
+      expect(find.text(name), findsOneWidget);
+      expect(find.textContaining('decimal places'), findsNothing);
+      final currencyRow = tester.widget<ListTile>(
+        find.ancestor(of: codeLabel, matching: find.byType(ListTile)),
+      );
+      expect((currencyRow.title! as Text).data, code);
+      expect((currencyRow.subtitle! as Text).data, name);
+      await tester.tap(codeLabel);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Create'));
       await settleDatabase(tester);

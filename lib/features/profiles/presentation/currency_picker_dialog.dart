@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/money/currency.dart';
 
@@ -39,11 +40,30 @@ class _CurrencyPickerDialogState extends State<CurrencyPickerDialog> {
                       children: [
                         for (final currency in currencies)
                           ListTile(
-                            title: Text('${currency.code} - ${currency.name}'),
-                            subtitle: Text('${currency.scale} decimal places'),
-                            trailing: currency.code == widget.selectedCode
-                                ? const Icon(Icons.check)
-                                : null,
+                            selected: currency.code == widget.selectedCode,
+                            title: Text(currency.code),
+                            subtitle: Text(currency.name),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  NumberFormat.simpleCurrency(
+                                    locale: View.of(context)
+                                        .platformDispatcher
+                                        .locale
+                                        .toString(),
+                                    name: currency.code,
+                                  ).currencySymbol,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                                if (currency.code == widget.selectedCode) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.check),
+                                ],
+                              ],
+                            ),
                             onTap: () => Navigator.pop(context, currency.code),
                           ),
                       ],
