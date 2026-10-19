@@ -101,7 +101,7 @@ void main() {
   test('Profile creation includes isolated starter categories and rejects duplicates', () async {
     final profiles = LocalProfileRepository(db);
     expect(await profiles.watchProfiles().first, hasLength(2));
-    expect(await profiles.watchCategories('a').first, hasLength(8));
+    expect(await profiles.watchCategories('a').first, hasLength(12));
     await expectLater(createProfile(db, 'a'), throwsA(isA<Exception>()));
     expect(await profiles.watchProfiles().first, hasLength(2));
   });

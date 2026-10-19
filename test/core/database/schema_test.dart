@@ -99,47 +99,12 @@ void main() {
     );
   });
 
-  test('Destructively recreates prior schema data for this pre-release schema change', () async {
-    await database.close();
-    final directory = await Directory.systemTemp.createTemp(
-      'expense_schema_reset_',
-    );
-    final file = File(
-      '${directory.path}${Platform.pathSeparator}expenses.sqlite',
-    );
-    var prior = AppDatabase.forTesting(NativeDatabase(file));
-    try {
-      await prior
-          .into(prior.profiles)
-          .insert(
-            ProfilesCompanion.insert(
-              profileId: 'old',
-              name: 'Old profile',
-              currencyCode: 'USD',
-              currencyScale: 2,
-              createdAt: 0,
-              updatedAt: 0,
-            ),
-          );
-      await prior.customStatement('PRAGMA user_version = 1');
-      await prior.close();
-      prior = AppDatabase.forTesting(NativeDatabase(file));
-      expect(await prior.select(prior.profiles).get(), isEmpty);
-      expect(await prior.select(prior.categories).get(), isEmpty);
-      expect(await prior.select(prior.transactions).get(), isEmpty);
-      expect(await prior.select(prior.budgets).get(), isEmpty);
-    } finally {
-      await prior.close();
-      await directory.delete(recursive: true);
-    }
-  });
-
   test(
-    'Adding scheduler tables to version 2 preserves existing profile data',
+    'Creates the complete initial schema and preserves data on reopen',
     () async {
       await database.close();
       final directory = await Directory.systemTemp.createTemp(
-        'expense_scheduler_upgrade_',
+        'expense_initial_schema_',
       );
       final file = File(
         '${directory.path}${Platform.pathSeparator}expenses.sqlite',
@@ -150,23 +115,44 @@ void main() {
             .into(prior.profiles)
             .insert(
               ProfilesCompanion.insert(
-                profileId: 'kept',
-                name: 'Existing',
-                currencyCode: 'PEN',
+                profileId: 'profile',
+                name: 'Personal',
+                currencyCode: 'USD',
                 currencyScale: 2,
                 createdAt: 0,
                 updatedAt: 0,
               ),
             );
-        await prior.customStatement('DROP TABLE schedule_occurrences');
-        await prior.customStatement('DROP TABLE transaction_schedules');
-        await prior.customStatement('PRAGMA user_version = 2');
+        expect(prior.schemaVersion, 1);
+        expect(
+          (await prior.customSelect('PRAGMA user_version').getSingle())
+              .read<int>('user_version'),
+          1,
+        );
+        final tables = await prior
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+            )
+            .get();
+        expect(tables.map((row) => row.read<String>('name')).toSet(), {
+          'profiles',
+          'categories',
+          'transactions',
+          'budgets',
+          'budget_buckets',
+          'budget_category_allocations',
+          'transaction_schedules',
+          'schedule_occurrences',
+        });
         await prior.close();
         prior = AppDatabase.forTesting(NativeDatabase(file));
         expect(
           (await prior.select(prior.profiles).get()).single.name,
-          'Existing',
+          'Personal',
         );
+        expect(await prior.select(prior.categories).get(), isEmpty);
+        expect(await prior.select(prior.transactions).get(), isEmpty);
+        expect(await prior.select(prior.budgets).get(), isEmpty);
         expect(await prior.select(prior.transactionSchedules).get(), isEmpty);
         expect(await prior.select(prior.scheduleOccurrences).get(), isEmpty);
         expect(

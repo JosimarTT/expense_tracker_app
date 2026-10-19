@@ -53,6 +53,47 @@ void main() {
   });
   tearDown(() => db.close());
 
+  test(
+    'Savings schedules post savings transactions rather than expenses',
+    () async {
+      await repo.save(
+        TransactionSchedule(
+          id: 'retirement',
+          profileId: 'a',
+          name: 'Retirement',
+          amountMinor: 20000,
+          type: TransactionType.savings,
+          categoryId: 'retirement',
+          startDate: DateTime(2026, 10, 1),
+          repeatUnit: RepeatUnit.month,
+          automatic: true,
+        ),
+      );
+      await repo.processDue('a', DateTime(2026, 11, 1));
+      final entries = await db.select(db.transactions).get();
+      expect(entries, hasLength(2));
+      expect(
+        entries.every(
+          (row) => row.type == 'savings' && row.categoryId == 'retirement',
+        ),
+        isTrue,
+      );
+      await expectLater(
+        repo.save(
+          TransactionSchedule(
+            id: 'reserved',
+            profileId: 'a',
+            name: 'Unused',
+            amountMinor: 100,
+            type: TransactionType.savings,
+            categoryId: TransactionCategory.unusedMoneyId,
+            startDate: DateTime(2026, 10),
+          ),
+        ),
+        throwsStateError,
+      );
+    },
+  );
   test('Schedule validation rejects unavailable profiles and mismatched categories', () async {
     await expectLater(repo.save(entry(profileId: 'missing')), throwsStateError);
     await expectLater(repo.save(entry(category: 'salary')), throwsStateError);

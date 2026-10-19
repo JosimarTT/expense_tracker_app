@@ -120,7 +120,7 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Percentages must total 100%. Savings is a target, not recorded spending.',
+              'Percentages must total 100%. All savings transactions count toward the Savings target, separately from expenses.',
             ),
             for (var index = 0; index < 3; index++)
               TextField(

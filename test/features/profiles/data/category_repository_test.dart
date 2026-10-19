@@ -65,6 +65,50 @@ void main() {
 
   tearDown(() => db.close());
 
+  test('Savings categories support presentation fields without Needs/Wants classification', () async {
+    final savings = TransactionCategory(
+      id: 'savings-custom',
+      name: 'Education fund',
+      type: TransactionType.savings,
+      iconKey: 'school',
+      colorArgb: 0xFF2E7D32,
+      defaultBudgetBucket: null,
+    );
+    await repository.save('a', savings);
+    final saved = (await repository.watchCategories('a').first).singleWhere(
+      (row) => row.id == savings.id,
+    );
+    expect(saved.type, TransactionType.savings);
+    expect(saved.defaultBudgetBucket, isNull);
+    await expectLater(
+      repository.save(
+        'a',
+        TransactionCategory(
+          id: 'invalid',
+          name: 'Savings',
+          type: TransactionType.savings,
+          iconKey: 'school',
+          colorArgb: 0xFF2E7D32,
+          defaultBudgetBucket: 'needs',
+        ),
+      ),
+      throwsArgumentError,
+    );
+    await expectLater(
+      repository.save(
+        'a',
+        TransactionCategory(
+          id: TransactionCategory.unusedMoneyId,
+          name: 'Renamed',
+          type: TransactionType.savings,
+          iconKey: 'school',
+          colorArgb: 0xFF2E7D32,
+          defaultBudgetBucket: null,
+        ),
+      ),
+      throwsStateError,
+    );
+  });
   test(
     'Permanent deletion purges deleted references only in the selected profile',
     () async {
@@ -350,7 +394,7 @@ void main() {
             isA<StateError>().having(
               (error) => error.message,
               'message',
-              contains('cannot change between income and expense'),
+              contains('cannot change transaction type'),
             ),
           ),
         );

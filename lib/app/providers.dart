@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/database/app_database.dart' hide TransactionSchedule;
 import '../features/schedules/data/local_schedule_repository.dart';
 import '../features/schedules/domain/transaction_schedule.dart';
+import '../features/savings/data/local_savings_repository.dart';
+import '../features/savings/domain/savings_repository.dart';
 import '../core/ids/id_generator.dart';
 import '../features/transactions/data/repositories/local_transaction_repository.dart';
 import '../features/transactions/domain/repositories/transaction_repository.dart';
@@ -26,6 +28,13 @@ final scheduleRepositoryProvider = Provider<ScheduleRepository>(
   (ref) => LocalScheduleRepository(
     ref.watch(databaseProvider),
     ref.watch(idGeneratorProvider),
+  ),
+);
+
+final savingsRepositoryProvider = Provider<SavingsRepository>(
+  (ref) => LocalSavingsRepository(
+    ref.watch(databaseProvider),
+    ids: ref.watch(idGeneratorProvider),
   ),
 );
 

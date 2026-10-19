@@ -3,11 +3,15 @@ import 'package:drift/drift.dart';
 import '../../../../core/database/app_database.dart';
 import '../../domain/entities/financial_transaction.dart';
 import '../../domain/repositories/transaction_repository.dart';
+import '../../../savings/data/local_savings_repository.dart';
+import '../../../profiles/domain/profile.dart';
 
 class LocalTransactionRepository implements TransactionRepository {
-  LocalTransactionRepository(this._database);
+  LocalTransactionRepository(this._database, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
   final AppDatabase _database;
+  final DateTime Function() _now;
 
   @override
   Stream<List<FinancialTransaction>> watchTransactions(String profileId) {
@@ -28,6 +32,7 @@ class LocalTransactionRepository implements TransactionRepository {
             amountMinor: row.amountMinor,
             type: TransactionType.values.byName(row.type),
             categoryId: row.categoryId,
+            savingsMonth: row.savingsMonth,
             occurredAt: DateTime.fromMillisecondsSinceEpoch(
               row.occurredAt,
               isUtc: true,
@@ -64,6 +69,13 @@ class LocalTransactionRepository implements TransactionRepository {
                     row.transactionId.equals(transaction.id),
               ))
               .getSingleOrNull();
+      if (existing?.savingsMonth != null ||
+          transaction.savingsMonth != null ||
+          transaction.categoryId == TransactionCategory.unusedMoneyId) {
+        throw StateError(
+          'Unused money savings are recalculated automatically. Edit the source transactions instead.',
+        );
+      }
       if (category?.deletedAt != null &&
           (existing == null || existing.categoryId != transaction.categoryId)) {
         throw StateError('The selected category is no longer active.');
@@ -87,6 +99,8 @@ class LocalTransactionRepository implements TransactionRepository {
               isSynced: const Value(0),
             ),
           );
+      await LocalSavingsRepository(_database)
+          .process(transaction.profileId, _now());
     });
   }
 
@@ -97,26 +111,43 @@ class LocalTransactionRepository implements TransactionRepository {
   }) async {
     _requireId(profileId);
     _requireId(transactionId);
-    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final count =
-        await (_database.update(_database.transactions)..where(
-              (row) =>
-                  row.profileId.equals(profileId) &
-                  row.transactionId.equals(transactionId) &
-                  row.deletedAt.isNull(),
-            ))
-            .write(
-              TransactionsCompanion.custom(
-                deletedAt: Variable(now),
-                updatedAt: Variable(now),
-                isSynced: const Constant(0),
-                localRevision:
-                    _database.transactions.localRevision + const Constant(1),
-              ),
-            );
-    if (count == 0) {
-      throw StateError('No active transaction found in the selected profile.');
-    }
+    await _database.transaction(() async {
+      final existing =
+          await (_database.select(_database.transactions)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.transactionId.equals(transactionId),
+              ))
+              .getSingleOrNull();
+      if (existing?.savingsMonth != null) {
+        throw StateError(
+          'Unused money savings are recalculated automatically. Edit the source transactions instead.',
+        );
+      }
+      final now = _now().toUtc().millisecondsSinceEpoch;
+      final count =
+          await (_database.update(_database.transactions)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.transactionId.equals(transactionId) &
+                    row.deletedAt.isNull(),
+              ))
+              .write(
+                TransactionsCompanion.custom(
+                  deletedAt: Variable(now),
+                  updatedAt: Variable(now),
+                  isSynced: const Constant(0),
+                  localRevision:
+                      _database.transactions.localRevision + const Constant(1),
+                ),
+              );
+      if (count == 0) {
+        throw StateError(
+          'No active transaction found in the selected profile.',
+        );
+      }
+      await LocalSavingsRepository(_database).process(profileId, _now());
+    });
   }
 
   void _requireId(String id) {

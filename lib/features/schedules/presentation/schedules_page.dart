@@ -271,7 +271,8 @@ class _SchedulesPageState extends ConsumerState<SchedulesPage>
                                             !categories.hasValue ||
                                             !categories.requireValue.any(
                                               (category) =>
-                                                  !category.isArchived,
+                                                  !category.isArchived &&
+                                                  !category.isSystem,
                                             )
                                         ? null
                                         : () => _edit(
@@ -328,7 +329,8 @@ class _SchedulesPageState extends ConsumerState<SchedulesPage>
                   _busy ||
                       !categories.hasValue ||
                       !categories.requireValue.any(
-                        (category) => !category.isArchived,
+                        (category) =>
+                            !category.isArchived && !category.isSystem,
                       )
                   ? null
                   : () => _edit(null, categories.requireValue),

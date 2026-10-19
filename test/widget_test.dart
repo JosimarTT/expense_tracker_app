@@ -299,20 +299,24 @@ void main() {
     );
     await tester.tap(find.text('Save'));
     await settleDatabase(tester);
+    await tester.scrollUntilVisible(find.text('Lunch with a friend'), 200);
     expect(find.text('Lunch with a friend'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, 1200));
+    await tester.pumpAndSettle();
     expect(find.text(r'Expenses: $12.50'), findsOneWidget);
     final transaction = await tester.runAsync(
       () => db.select(db.transactions).getSingle(),
     );
     expect(isUuidV7(transaction!.transactionId), isTrue);
+    await tester.ensureVisible(find.text('Set monthly budget'));
     await tester.tap(find.text('Set monthly budget'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Needs (%)'), '60');
     await tester.enterText(find.widgetWithText(TextField, 'Wants (%)'), '20');
     await tester.tap(find.text('Save budget'));
     await settleDatabase(tester);
+    await tester.scrollUntilVisible(find.text('Needs (60.0%)'), 200);
     expect(find.text('Needs (60.0%)'), findsOneWidget);
-    expect(find.text(r'Savings target: $0.00'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsOneWidget);
     await tester.ensureVisible(find.text('Add transaction'));
     await tester.tap(find.text('Add transaction'));
@@ -334,9 +338,7 @@ void main() {
     await tester.drag(find.byType(ListView).first, const Offset(0, 500));
     await tester.pumpAndSettle();
     expect(find.text(r'Income: $1,000.00'), findsOneWidget);
-    expect(find.text(r'Savings target: $200.00'), findsOneWidget);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text(r'$12.50 of $200.00'), 200);
     expect(find.text(r'$12.50 of $200.00'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsNothing);
     expect(
@@ -394,14 +396,18 @@ void main() {
         ),
       );
       await settleDatabase(tester);
+      await tester.scrollUntilVisible(find.text('Personal purchase'), 200);
       expect(find.text('Personal purchase'), findsOneWidget);
       expect(find.text('Household purchase'), findsNothing);
       await tester.tap(find.text('Personal (USD)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Household (USD)').last);
       await settleDatabase(tester);
+      await tester.scrollUntilVisible(find.text('Household purchase'), 200);
       expect(find.text('Household purchase'), findsOneWidget);
       expect(find.text('Personal purchase'), findsNothing);
+      await tester.drag(find.byType(ListView).first, const Offset(0, 1200));
+      await tester.pumpAndSettle();
       expect(find.text(r'Expenses: $2.00'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

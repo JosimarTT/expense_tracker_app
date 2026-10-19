@@ -109,7 +109,7 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Name, icon, and color changes also update how historical transactions appear. '
-                  'A category with transactions cannot switch between income and expense.',
+                  'A category with history cannot change transaction type.',
                 ),
               ),
             TextField(
@@ -129,6 +129,10 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
                 DropdownMenuItem(
                   value: TransactionType.expense,
                   child: Text('Expense'),
+                ),
+                DropdownMenuItem(
+                  value: TransactionType.savings,
+                  child: Text('Savings'),
                 ),
               ],
               onChanged: _saving

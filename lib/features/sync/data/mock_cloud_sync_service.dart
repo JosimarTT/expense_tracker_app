@@ -34,6 +34,7 @@ class MockCloudSyncService implements SyncRepository {
       amountMinor: row.amountMinor,
       type: TransactionType.values.byName(row.type),
       categoryId: row.categoryId,
+      savingsMonth: row.savingsMonth,
       occurredAt: DateTime.fromMillisecondsSinceEpoch(row.occurredAt, isUtc: true),
     ),
     localRevision: row.localRevision,

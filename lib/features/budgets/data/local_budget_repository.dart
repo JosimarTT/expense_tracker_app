@@ -12,8 +12,9 @@ class LocalBudgetRepository implements BudgetRepository {
   @override
   Stream<List<BudgetRule>> watchBudgets(String profileId) {
     _requireId(profileId);
-    return _database.customSelect(
-      '''
+    return _database
+        .customSelect(
+          '''
       SELECT b.budget_id, b.name AS budget_name, b.period_start, b.period_end,
              k.bucket_id, k.name AS bucket_name, k.allocation_bps, a.category_id
       FROM budgets b
@@ -25,22 +26,26 @@ class LocalBudgetRepository implements BudgetRepository {
       WHERE b.profile_id = ? AND b.deleted_at IS NULL
       ORDER BY b.period_start, b.budget_id, k.bucket_id, a.category_id
       ''',
-      variables: [Variable(profileId)],
-      readsFrom: {
-        _database.budgets,
-        _database.budgetBuckets,
-        _database.budgetCategoryAllocations,
-      },
-    ).watch().map((rows) {
-      final grouped = <String, List<QueryRow>>{};
-      for (final row in rows) {
-        grouped.putIfAbsent(row.read<String>('budget_id'), () => []).add(row);
-      }
-      return [
-        for (final entry in grouped.entries)
-          _mapRule(profileId, entry.key, entry.value),
-      ];
-    });
+          variables: [Variable(profileId)],
+          readsFrom: {
+            _database.budgets,
+            _database.budgetBuckets,
+            _database.budgetCategoryAllocations,
+          },
+        )
+        .watch()
+        .map((rows) {
+          final grouped = <String, List<QueryRow>>{};
+          for (final row in rows) {
+            grouped
+                .putIfAbsent(row.read<String>('budget_id'), () => [])
+                .add(row);
+          }
+          return [
+            for (final entry in grouped.entries)
+              _mapRule(profileId, entry.key, entry.value),
+          ];
+        });
   }
 
   BudgetRule _mapRule(String profileId, String id, List<QueryRow> rows) {
@@ -56,8 +61,14 @@ class LocalBudgetRepository implements BudgetRepository {
       id: id,
       profileId: profileId,
       name: first.read<String>('budget_name'),
-      periodStart: DateTime.fromMillisecondsSinceEpoch(first.read<int>('period_start'), isUtc: true),
-      periodEnd: DateTime.fromMillisecondsSinceEpoch(first.read<int>('period_end'), isUtc: true),
+      periodStart: DateTime.fromMillisecondsSinceEpoch(
+        first.read<int>('period_start'),
+        isUtc: true,
+      ),
+      periodEnd: DateTime.fromMillisecondsSinceEpoch(
+        first.read<int>('period_end'),
+        isUtc: true,
+      ),
       buckets: [
         for (final entry in buckets.entries)
           BudgetBucket(
@@ -74,38 +85,63 @@ class LocalBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> save(BudgetRule budget) => _database.transaction(() async {
-    final profile = await (_database.select(_database.profiles)
-      ..where((row) => row.profileId.equals(budget.profileId) & row.deletedAt.isNull()))
-        .getSingleOrNull();
+    final profile =
+        await (_database.select(_database.profiles)..where(
+              (row) =>
+                  row.profileId.equals(budget.profileId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
     if (profile == null) {
       throw StateError('The selected profile is no longer active.');
     }
-    final categories = await (_database.select(_database.categories)
-      ..where((row) => row.profileId.equals(budget.profileId) & row.deletedAt.isNull()))
-        .get();
-    final existingAllocations = await (_database.select(_database.budgetCategoryAllocations)
-      ..where((row) => row.profileId.equals(budget.profileId) &
-          row.budgetId.equals(budget.id) & row.deletedAt.isNull())).get();
-    final expenseIds = categories.where((row) => row.type == 'expense')
-        .map((row) => row.categoryId).toSet();
+    final categories =
+        await (_database.select(_database.categories)..where(
+              (row) =>
+                  row.profileId.equals(budget.profileId) &
+                  row.deletedAt.isNull(),
+            ))
+            .get();
+    final existingAllocations =
+        await (_database.select(_database.budgetCategoryAllocations)..where(
+              (row) =>
+                  row.profileId.equals(budget.profileId) &
+                  row.budgetId.equals(budget.id) &
+                  row.deletedAt.isNull(),
+            ))
+            .get();
+    final expenseIds = categories
+        .where((row) => row.type == 'expense')
+        .map((row) => row.categoryId)
+        .toSet();
     for (final bucket in budget.buckets) {
       final retainedIds = existingAllocations
           .where((row) => row.bucketId == bucket.id)
           .map((row) => row.categoryId);
       if (!{...expenseIds, ...retainedIds}.containsAll(bucket.categoryIds)) {
-        throw ArgumentError('Only active expense categories from this profile may be budgeted.');
+        throw ArgumentError(
+          'Only active expense categories from this profile may be budgeted.',
+        );
       }
     }
-    final overlaps = await (_database.select(_database.budgets)
-      ..where((row) =>
-          row.profileId.equals(budget.profileId) &
-          row.budgetId.equals(budget.id).not() &
-          row.deletedAt.isNull() &
-          row.periodStart.isSmallerThanValue(budget.periodEnd.millisecondsSinceEpoch) &
-          row.periodEnd.isBiggerThanValue(budget.periodStart.millisecondsSinceEpoch)))
-        .get();
+    final overlaps =
+        await (_database.select(_database.budgets)..where(
+              (row) =>
+                  row.profileId.equals(budget.profileId) &
+                  row.budgetId.equals(budget.id).not() &
+                  row.deletedAt.isNull() &
+                  row.periodStart.isSmallerThanValue(
+                    budget.periodEnd.millisecondsSinceEpoch,
+                  ) &
+                  row.periodEnd.isBiggerThanValue(
+                    budget.periodStart.millisecondsSinceEpoch,
+                  ),
+            ))
+            .get();
     if (overlaps.isNotEmpty) {
-      throw StateError('This profile already has a budget overlapping this period.');
+      throw StateError(
+        'This profile already has a budget overlapping this period.',
+      );
     }
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     await _database.customInsert(
@@ -119,9 +155,13 @@ class LocalBudgetRepository implements BudgetRepository {
         deleted_at = NULL, is_synced = 0, local_revision = budgets.local_revision + 1
       ''',
       variables: [
-        Variable(budget.profileId), Variable(budget.id), Variable(budget.name),
+        Variable(budget.profileId),
+        Variable(budget.id),
+        Variable(budget.name),
         Variable(budget.periodStart.millisecondsSinceEpoch),
-        Variable(budget.periodEnd.millisecondsSinceEpoch), Variable(now), Variable(now),
+        Variable(budget.periodEnd.millisecondsSinceEpoch),
+        Variable(now),
+        Variable(now),
       ],
       updates: {_database.budgets},
     );
@@ -137,8 +177,13 @@ class LocalBudgetRepository implements BudgetRepository {
           updated_at = excluded.updated_at, deleted_at = NULL, is_synced = 0
         ''',
         variables: [
-          Variable(budget.profileId), Variable(budget.id), Variable(bucket.id),
-          Variable(bucket.name), Variable(bucket.allocationBps), Variable(now), Variable(now),
+          Variable(budget.profileId),
+          Variable(budget.id),
+          Variable(bucket.id),
+          Variable(bucket.name),
+          Variable(bucket.allocationBps),
+          Variable(now),
+          Variable(now),
         ],
         updates: {_database.budgetBuckets},
       );
@@ -153,8 +198,12 @@ class LocalBudgetRepository implements BudgetRepository {
             deleted_at = NULL, is_synced = 0
           ''',
           variables: [
-            Variable(budget.profileId), Variable(budget.id), Variable(bucket.id),
-            Variable(category), Variable(now), Variable(now),
+            Variable(budget.profileId),
+            Variable(budget.id),
+            Variable(bucket.id),
+            Variable(category),
+            Variable(now),
+            Variable(now),
           ],
           updates: {_database.budgetCategoryAllocations},
         );
@@ -162,13 +211,25 @@ class LocalBudgetRepository implements BudgetRepository {
     }
   });
 
-  Future<void> _tombstoneChildren(String profileId, String budgetId, int now) async {
-    for (final table in <TableInfo<Table, Object?>>[_database.budgetCategoryAllocations, _database.budgetBuckets]) {
+  Future<void> _tombstoneChildren(
+    String profileId,
+    String budgetId,
+    int now,
+  ) async {
+    for (final table in <TableInfo<Table, Object?>>[
+      _database.budgetCategoryAllocations,
+      _database.budgetBuckets,
+    ]) {
       await _database.customUpdate(
         'UPDATE ${table.actualTableName} SET deleted_at = ?, updated_at = ?, '
         'is_synced = 0, local_revision = local_revision + 1 '
         'WHERE profile_id = ? AND budget_id = ?',
-        variables: [Variable(now), Variable(now), Variable(profileId), Variable(budgetId)],
+        variables: [
+          Variable(now),
+          Variable(now),
+          Variable(profileId),
+          Variable(budgetId),
+        ],
         updates: {table},
       );
     }
@@ -184,7 +245,12 @@ class LocalBudgetRepository implements BudgetRepository {
         'UPDATE budgets SET deleted_at = ?, updated_at = ?, is_synced = 0, '
         'local_revision = local_revision + 1 '
         'WHERE profile_id = ? AND budget_id = ? AND deleted_at IS NULL',
-        variables: [Variable(now), Variable(now), Variable(profileId), Variable(budgetId)],
+        variables: [
+          Variable(now),
+          Variable(now),
+          Variable(profileId),
+          Variable(budgetId),
+        ],
         updates: {_database.budgets},
       );
       if (count == 0) {

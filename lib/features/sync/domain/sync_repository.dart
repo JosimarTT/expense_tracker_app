@@ -20,6 +20,7 @@ class SyncTransaction {
       transaction.amountMinor == other.transaction.amountMinor &&
       transaction.type == other.transaction.type &&
       transaction.categoryId == other.transaction.categoryId &&
+      transaction.savingsMonth == other.transaction.savingsMonth &&
       transaction.occurredAt == other.transaction.occurredAt &&
       updatedAt == other.updatedAt &&
       deletedAt == other.deletedAt;

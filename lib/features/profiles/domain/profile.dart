@@ -6,15 +6,18 @@ class LocalProfile {
     required this.name,
     required this.currencyCode,
     required this.currencyScale,
+    this.autoSavings = false,
   });
 
   final String id;
   final String name;
   final String currencyCode;
   final int currencyScale;
+  final bool autoSavings;
 }
 
 class TransactionCategory {
+  static const unusedMoneyId = 'unused_money';
   const TransactionCategory({
     required this.id,
     required this.name,
@@ -32,6 +35,7 @@ class TransactionCategory {
   final int colorArgb;
   final String? defaultBudgetBucket;
   final bool isArchived;
+  bool get isSystem => id == unusedMoneyId;
 }
 
 abstract interface class CategoryRepository {

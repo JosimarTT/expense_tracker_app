@@ -37,11 +37,18 @@ class _ScheduleEditorDialogState extends ConsumerState<ScheduleEditorDialog> {
   );
   late TransactionType _type =
       widget.existing?.type ??
-      widget.categories.firstWhere((category) => !category.isArchived).type;
+      widget.categories
+          .firstWhere((category) => !category.isArchived && !category.isSystem)
+          .type;
   late String? _categoryId =
       widget.existing?.categoryId ??
       widget.categories
-          .where((category) => !category.isArchived && category.type == _type)
+          .where(
+            (category) =>
+                !category.isArchived &&
+                !category.isSystem &&
+                category.type == _type,
+          )
           .firstOrNull
           ?.id;
   late DateTime _start =
@@ -155,14 +162,11 @@ class _ScheduleEditorDialogState extends ConsumerState<ScheduleEditorDialog> {
                   if (type == _type ||
                       widget.categories.any(
                         (category) =>
-                            !category.isArchived && category.type == type,
+                            !category.isArchived &&
+                            !category.isSystem &&
+                            category.type == type,
                       ))
-                    DropdownMenuItem(
-                      value: type,
-                      child: Text(
-                        type == TransactionType.income ? 'Income' : 'Expense',
-                      ),
-                    ),
+                    DropdownMenuItem(value: type, child: Text(type.label)),
               ],
               onChanged: _saving
                   ? null
@@ -171,7 +175,9 @@ class _ScheduleEditorDialogState extends ConsumerState<ScheduleEditorDialog> {
                       _categoryId = widget.categories
                           .where(
                             (category) =>
-                                !category.isArchived && category.type == _type,
+                                !category.isArchived &&
+                                !category.isSystem &&
+                                category.type == _type,
                           )
                           .firstOrNull
                           ?.id;
@@ -182,14 +188,18 @@ class _ScheduleEditorDialogState extends ConsumerState<ScheduleEditorDialog> {
               initialValue:
                   widget.categories.any(
                     (category) =>
-                        !category.isArchived && category.id == _categoryId,
+                        !category.isArchived &&
+                        !category.isSystem &&
+                        category.id == _categoryId,
                   )
                   ? _categoryId
                   : null,
               decoration: const InputDecoration(labelText: 'Category'),
               items: [
                 for (final category in widget.categories)
-                  if (!category.isArchived && category.type == _type)
+                  if (!category.isArchived &&
+                      !category.isSystem &&
+                      category.type == _type)
                     DropdownMenuItem(
                       value: category.id,
                       child: Text(category.name),

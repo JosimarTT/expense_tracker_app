@@ -51,6 +51,29 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (currency_scale BETWEEN 0 AND 4)',
   );
+  static const VerificationMeta _autoSavingsMeta = const VerificationMeta(
+    'autoSavings',
+  );
+  late final GeneratedColumn<int> autoSavings = GeneratedColumn<int>(
+    'auto_savings',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (auto_savings IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
+  static const VerificationMeta _autoSavingsSinceMeta = const VerificationMeta(
+    'autoSavingsSince',
+  );
+  late final GeneratedColumn<String> autoSavingsSince = GeneratedColumn<String>(
+    'auto_savings_since',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -114,6 +137,8 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
     name,
     currencyCode,
     currencyScale,
+    autoSavings,
+    autoSavingsSince,
     createdAt,
     updatedAt,
     deletedAt,
@@ -169,6 +194,24 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
       );
     } else if (isInserting) {
       context.missing(_currencyScaleMeta);
+    }
+    if (data.containsKey('auto_savings')) {
+      context.handle(
+        _autoSavingsMeta,
+        autoSavings.isAcceptableOrUnknown(
+          data['auto_savings']!,
+          _autoSavingsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('auto_savings_since')) {
+      context.handle(
+        _autoSavingsSinceMeta,
+        autoSavingsSince.isAcceptableOrUnknown(
+          data['auto_savings_since']!,
+          _autoSavingsSinceMeta,
+        ),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -232,6 +275,14 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
         DriftSqlType.int,
         data['${effectivePrefix}currency_scale'],
       )!,
+      autoSavings: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auto_savings'],
+      )!,
+      autoSavingsSince: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}auto_savings_since'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -269,6 +320,8 @@ class Profile extends DataClass implements Insertable<Profile> {
   final String name;
   final String currencyCode;
   final int currencyScale;
+  final int autoSavings;
+  final String? autoSavingsSince;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -279,6 +332,8 @@ class Profile extends DataClass implements Insertable<Profile> {
     required this.name,
     required this.currencyCode,
     required this.currencyScale,
+    required this.autoSavings,
+    this.autoSavingsSince,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -292,6 +347,10 @@ class Profile extends DataClass implements Insertable<Profile> {
     map['name'] = Variable<String>(name);
     map['currency_code'] = Variable<String>(currencyCode);
     map['currency_scale'] = Variable<int>(currencyScale);
+    map['auto_savings'] = Variable<int>(autoSavings);
+    if (!nullToAbsent || autoSavingsSince != null) {
+      map['auto_savings_since'] = Variable<String>(autoSavingsSince);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -308,6 +367,10 @@ class Profile extends DataClass implements Insertable<Profile> {
       name: Value(name),
       currencyCode: Value(currencyCode),
       currencyScale: Value(currencyScale),
+      autoSavings: Value(autoSavings),
+      autoSavingsSince: autoSavingsSince == null && nullToAbsent
+          ? const Value.absent()
+          : Value(autoSavingsSince),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -328,6 +391,10 @@ class Profile extends DataClass implements Insertable<Profile> {
       name: serializer.fromJson<String>(json['name']),
       currencyCode: serializer.fromJson<String>(json['currency_code']),
       currencyScale: serializer.fromJson<int>(json['currency_scale']),
+      autoSavings: serializer.fromJson<int>(json['auto_savings']),
+      autoSavingsSince: serializer.fromJson<String?>(
+        json['auto_savings_since'],
+      ),
       createdAt: serializer.fromJson<int>(json['created_at']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
@@ -343,6 +410,8 @@ class Profile extends DataClass implements Insertable<Profile> {
       'name': serializer.toJson<String>(name),
       'currency_code': serializer.toJson<String>(currencyCode),
       'currency_scale': serializer.toJson<int>(currencyScale),
+      'auto_savings': serializer.toJson<int>(autoSavings),
+      'auto_savings_since': serializer.toJson<String?>(autoSavingsSince),
       'created_at': serializer.toJson<int>(createdAt),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
@@ -356,6 +425,8 @@ class Profile extends DataClass implements Insertable<Profile> {
     String? name,
     String? currencyCode,
     int? currencyScale,
+    int? autoSavings,
+    Value<String?> autoSavingsSince = const Value.absent(),
     int? createdAt,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -366,6 +437,10 @@ class Profile extends DataClass implements Insertable<Profile> {
     name: name ?? this.name,
     currencyCode: currencyCode ?? this.currencyCode,
     currencyScale: currencyScale ?? this.currencyScale,
+    autoSavings: autoSavings ?? this.autoSavings,
+    autoSavingsSince: autoSavingsSince.present
+        ? autoSavingsSince.value
+        : this.autoSavingsSince,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -382,6 +457,12 @@ class Profile extends DataClass implements Insertable<Profile> {
       currencyScale: data.currencyScale.present
           ? data.currencyScale.value
           : this.currencyScale,
+      autoSavings: data.autoSavings.present
+          ? data.autoSavings.value
+          : this.autoSavings,
+      autoSavingsSince: data.autoSavingsSince.present
+          ? data.autoSavingsSince.value
+          : this.autoSavingsSince,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -399,6 +480,8 @@ class Profile extends DataClass implements Insertable<Profile> {
           ..write('name: $name, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('currencyScale: $currencyScale, ')
+          ..write('autoSavings: $autoSavings, ')
+          ..write('autoSavingsSince: $autoSavingsSince, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -414,6 +497,8 @@ class Profile extends DataClass implements Insertable<Profile> {
     name,
     currencyCode,
     currencyScale,
+    autoSavings,
+    autoSavingsSince,
     createdAt,
     updatedAt,
     deletedAt,
@@ -428,6 +513,8 @@ class Profile extends DataClass implements Insertable<Profile> {
           other.name == this.name &&
           other.currencyCode == this.currencyCode &&
           other.currencyScale == this.currencyScale &&
+          other.autoSavings == this.autoSavings &&
+          other.autoSavingsSince == this.autoSavingsSince &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
@@ -440,6 +527,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   final Value<String> name;
   final Value<String> currencyCode;
   final Value<int> currencyScale;
+  final Value<int> autoSavings;
+  final Value<String?> autoSavingsSince;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -451,6 +540,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     this.name = const Value.absent(),
     this.currencyCode = const Value.absent(),
     this.currencyScale = const Value.absent(),
+    this.autoSavings = const Value.absent(),
+    this.autoSavingsSince = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -463,6 +554,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     required String name,
     required String currencyCode,
     required int currencyScale,
+    this.autoSavings = const Value.absent(),
+    this.autoSavingsSince = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -480,6 +573,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     Expression<String>? name,
     Expression<String>? currencyCode,
     Expression<int>? currencyScale,
+    Expression<int>? autoSavings,
+    Expression<String>? autoSavingsSince,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -492,6 +587,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
       if (name != null) 'name': name,
       if (currencyCode != null) 'currency_code': currencyCode,
       if (currencyScale != null) 'currency_scale': currencyScale,
+      if (autoSavings != null) 'auto_savings': autoSavings,
+      if (autoSavingsSince != null) 'auto_savings_since': autoSavingsSince,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -506,6 +603,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     Value<String>? name,
     Value<String>? currencyCode,
     Value<int>? currencyScale,
+    Value<int>? autoSavings,
+    Value<String?>? autoSavingsSince,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -518,6 +617,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
       name: name ?? this.name,
       currencyCode: currencyCode ?? this.currencyCode,
       currencyScale: currencyScale ?? this.currencyScale,
+      autoSavings: autoSavings ?? this.autoSavings,
+      autoSavingsSince: autoSavingsSince ?? this.autoSavingsSince,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -541,6 +642,12 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     }
     if (currencyScale.present) {
       map['currency_scale'] = Variable<int>(currencyScale.value);
+    }
+    if (autoSavings.present) {
+      map['auto_savings'] = Variable<int>(autoSavings.value);
+    }
+    if (autoSavingsSince.present) {
+      map['auto_savings_since'] = Variable<String>(autoSavingsSince.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -570,6 +677,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
           ..write('name: $name, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('currencyScale: $currencyScale, ')
+          ..write('autoSavings: $autoSavings, ')
+          ..write('autoSavingsSince: $autoSavingsSince, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -624,7 +733,8 @@ class Categories extends Table with TableInfo<Categories, Category> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (type IN (\'income\', \'expense\'))',
+    $customConstraints:
+        'NOT NULL CHECK (type IN (\'income\', \'expense\', \'savings\'))',
   );
   static const VerificationMeta _iconKeyMeta = const VerificationMeta(
     'iconKey',
@@ -1366,7 +1476,19 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (type IN (\'income\', \'expense\'))',
+    $customConstraints:
+        'NOT NULL CHECK (type IN (\'income\', \'expense\', \'savings\'))',
+  );
+  static const VerificationMeta _savingsMonthMeta = const VerificationMeta(
+    'savingsMonth',
+  );
+  late final GeneratedColumn<String> savingsMonth = GeneratedColumn<String>(
+    'savings_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
   );
   static const VerificationMeta _categoryIdMeta = const VerificationMeta(
     'categoryId',
@@ -1454,6 +1576,7 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     notes,
     amountMinor,
     type,
+    savingsMonth,
     categoryId,
     occurredAt,
     createdAt,
@@ -1518,6 +1641,15 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     } else if (isInserting) {
       context.missing(_typeMeta);
     }
+    if (data.containsKey('savings_month')) {
+      context.handle(
+        _savingsMonthMeta,
+        savingsMonth.isAcceptableOrUnknown(
+          data['savings_month']!,
+          _savingsMonthMeta,
+        ),
+      );
+    }
     if (data.containsKey('category_id')) {
       context.handle(
         _categoryIdMeta,
@@ -1577,6 +1709,10 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
   @override
   Set<GeneratedColumn> get $primaryKey => {profileId, transactionId};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {profileId, savingsMonth},
+  ];
+  @override
   Transaction map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Transaction(
@@ -1600,6 +1736,10 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      savingsMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}savings_month'],
+      ),
       categoryId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}category_id'],
@@ -1639,6 +1779,7 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
   @override
   List<String> get customConstraints => const [
     'PRIMARY KEY(profile_id, transaction_id)',
+    'UNIQUE(profile_id, savings_month)',
     'FOREIGN KEY(profile_id, category_id, type)REFERENCES categories(profile_id, category_id, type)',
   ];
   @override
@@ -1651,6 +1792,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final String notes;
   final int amountMinor;
   final String type;
+  final String? savingsMonth;
   final String categoryId;
   final int occurredAt;
   final int createdAt;
@@ -1664,6 +1806,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.notes,
     required this.amountMinor,
     required this.type,
+    this.savingsMonth,
     required this.categoryId,
     required this.occurredAt,
     required this.createdAt,
@@ -1680,6 +1823,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     map['notes'] = Variable<String>(notes);
     map['amount_minor'] = Variable<int>(amountMinor);
     map['type'] = Variable<String>(type);
+    if (!nullToAbsent || savingsMonth != null) {
+      map['savings_month'] = Variable<String>(savingsMonth);
+    }
     map['category_id'] = Variable<String>(categoryId);
     map['occurred_at'] = Variable<int>(occurredAt);
     map['created_at'] = Variable<int>(createdAt);
@@ -1699,6 +1845,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       notes: Value(notes),
       amountMinor: Value(amountMinor),
       type: Value(type),
+      savingsMonth: savingsMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(savingsMonth),
       categoryId: Value(categoryId),
       occurredAt: Value(occurredAt),
       createdAt: Value(createdAt),
@@ -1722,6 +1871,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       notes: serializer.fromJson<String>(json['notes']),
       amountMinor: serializer.fromJson<int>(json['amount_minor']),
       type: serializer.fromJson<String>(json['type']),
+      savingsMonth: serializer.fromJson<String?>(json['savings_month']),
       categoryId: serializer.fromJson<String>(json['category_id']),
       occurredAt: serializer.fromJson<int>(json['occurred_at']),
       createdAt: serializer.fromJson<int>(json['created_at']),
@@ -1740,6 +1890,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'notes': serializer.toJson<String>(notes),
       'amount_minor': serializer.toJson<int>(amountMinor),
       'type': serializer.toJson<String>(type),
+      'savings_month': serializer.toJson<String?>(savingsMonth),
       'category_id': serializer.toJson<String>(categoryId),
       'occurred_at': serializer.toJson<int>(occurredAt),
       'created_at': serializer.toJson<int>(createdAt),
@@ -1756,6 +1907,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     String? notes,
     int? amountMinor,
     String? type,
+    Value<String?> savingsMonth = const Value.absent(),
     String? categoryId,
     int? occurredAt,
     int? createdAt,
@@ -1769,6 +1921,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     notes: notes ?? this.notes,
     amountMinor: amountMinor ?? this.amountMinor,
     type: type ?? this.type,
+    savingsMonth: savingsMonth.present ? savingsMonth.value : this.savingsMonth,
     categoryId: categoryId ?? this.categoryId,
     occurredAt: occurredAt ?? this.occurredAt,
     createdAt: createdAt ?? this.createdAt,
@@ -1788,6 +1941,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? data.amountMinor.value
           : this.amountMinor,
       type: data.type.present ? data.type.value : this.type,
+      savingsMonth: data.savingsMonth.present
+          ? data.savingsMonth.value
+          : this.savingsMonth,
       categoryId: data.categoryId.present
           ? data.categoryId.value
           : this.categoryId,
@@ -1812,6 +1968,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('notes: $notes, ')
           ..write('amountMinor: $amountMinor, ')
           ..write('type: $type, ')
+          ..write('savingsMonth: $savingsMonth, ')
           ..write('categoryId: $categoryId, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
@@ -1830,6 +1987,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     notes,
     amountMinor,
     type,
+    savingsMonth,
     categoryId,
     occurredAt,
     createdAt,
@@ -1847,6 +2005,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.notes == this.notes &&
           other.amountMinor == this.amountMinor &&
           other.type == this.type &&
+          other.savingsMonth == this.savingsMonth &&
           other.categoryId == this.categoryId &&
           other.occurredAt == this.occurredAt &&
           other.createdAt == this.createdAt &&
@@ -1862,6 +2021,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String> notes;
   final Value<int> amountMinor;
   final Value<String> type;
+  final Value<String?> savingsMonth;
   final Value<String> categoryId;
   final Value<int> occurredAt;
   final Value<int> createdAt;
@@ -1876,6 +2036,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.notes = const Value.absent(),
     this.amountMinor = const Value.absent(),
     this.type = const Value.absent(),
+    this.savingsMonth = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.occurredAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1891,6 +2052,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.notes = const Value.absent(),
     required int amountMinor,
     required String type,
+    this.savingsMonth = const Value.absent(),
     required String categoryId,
     required int occurredAt,
     required int createdAt,
@@ -1913,6 +2075,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? notes,
     Expression<int>? amountMinor,
     Expression<String>? type,
+    Expression<String>? savingsMonth,
     Expression<String>? categoryId,
     Expression<int>? occurredAt,
     Expression<int>? createdAt,
@@ -1928,6 +2091,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (notes != null) 'notes': notes,
       if (amountMinor != null) 'amount_minor': amountMinor,
       if (type != null) 'type': type,
+      if (savingsMonth != null) 'savings_month': savingsMonth,
       if (categoryId != null) 'category_id': categoryId,
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -1945,6 +2109,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<String>? notes,
     Value<int>? amountMinor,
     Value<String>? type,
+    Value<String?>? savingsMonth,
     Value<String>? categoryId,
     Value<int>? occurredAt,
     Value<int>? createdAt,
@@ -1960,6 +2125,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       notes: notes ?? this.notes,
       amountMinor: amountMinor ?? this.amountMinor,
       type: type ?? this.type,
+      savingsMonth: savingsMonth ?? this.savingsMonth,
       categoryId: categoryId ?? this.categoryId,
       occurredAt: occurredAt ?? this.occurredAt,
       createdAt: createdAt ?? this.createdAt,
@@ -1988,6 +2154,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (savingsMonth.present) {
+      map['savings_month'] = Variable<String>(savingsMonth.value);
     }
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
@@ -2024,6 +2193,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('notes: $notes, ')
           ..write('amountMinor: $amountMinor, ')
           ..write('type: $type, ')
+          ..write('savingsMonth: $savingsMonth, ')
           ..write('categoryId: $categoryId, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
@@ -3936,7 +4106,8 @@ class TransactionSchedules extends Table
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (type IN (\'income\', \'expense\'))',
+    $customConstraints:
+        'NOT NULL CHECK (type IN (\'income\', \'expense\', \'savings\'))',
   );
   static const VerificationMeta _categoryIdMeta = const VerificationMeta(
     'categoryId',
@@ -5424,6 +5595,8 @@ typedef $ProfilesCreateCompanionBuilder = ProfilesCompanion Function({
   required String name,
   required String currencyCode,
   required int currencyScale,
+  Value<int> autoSavings,
+  Value<String?> autoSavingsSince,
   required int createdAt,
   required int updatedAt,
   Value<int?> deletedAt,
@@ -5436,6 +5609,8 @@ typedef $ProfilesUpdateCompanionBuilder = ProfilesCompanion Function({
   Value<String> name,
   Value<String> currencyCode,
   Value<int> currencyScale,
+  Value<int> autoSavings,
+  Value<String?> autoSavingsSince,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int?> deletedAt,
@@ -5556,6 +5731,16 @@ class $ProfilesFilterComposer extends Composer<_$AppDatabase, Profiles> {
 
   ColumnFilters<int> get currencyScale => $composableBuilder(
     column: $table.currencyScale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get autoSavings => $composableBuilder(
+    column: $table.autoSavings,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get autoSavingsSince => $composableBuilder(
+    column: $table.autoSavingsSince,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5713,6 +5898,16 @@ class $ProfilesOrderingComposer extends Composer<_$AppDatabase, Profiles> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get autoSavings => $composableBuilder(
+    column: $table.autoSavings,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get autoSavingsSince => $composableBuilder(
+    column: $table.autoSavingsSince,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5760,6 +5955,16 @@ class $ProfilesAnnotationComposer extends Composer<_$AppDatabase, Profiles> {
 
   GeneratedColumn<int> get currencyScale => $composableBuilder(
     column: $table.currencyScale,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get autoSavings => $composableBuilder(
+    column: $table.autoSavings,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get autoSavingsSince => $composableBuilder(
+    column: $table.autoSavingsSince,
     builder: (column) => column,
   );
 
@@ -5918,6 +6123,8 @@ class $ProfilesTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
                 Value<int> currencyScale = const Value.absent(),
+                Value<int> autoSavings = const Value.absent(),
+                Value<String?> autoSavingsSince = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -5929,6 +6136,8 @@ class $ProfilesTableManager
                 name: name,
                 currencyCode: currencyCode,
                 currencyScale: currencyScale,
+                autoSavings: autoSavings,
+                autoSavingsSince: autoSavingsSince,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -5942,6 +6151,8 @@ class $ProfilesTableManager
                 required String name,
                 required String currencyCode,
                 required int currencyScale,
+                Value<int> autoSavings = const Value.absent(),
+                Value<String?> autoSavingsSince = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -5953,6 +6164,8 @@ class $ProfilesTableManager
                 name: name,
                 currencyCode: currencyCode,
                 currencyScale: currencyScale,
+                autoSavings: autoSavings,
+                autoSavingsSince: autoSavingsSince,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -6536,6 +6749,7 @@ typedef $TransactionsCreateCompanionBuilder = TransactionsCompanion Function({
   Value<String> notes,
   required int amountMinor,
   required String type,
+  Value<String?> savingsMonth,
   required String categoryId,
   required int occurredAt,
   required int createdAt,
@@ -6551,6 +6765,7 @@ typedef $TransactionsUpdateCompanionBuilder = TransactionsCompanion Function({
   Value<String> notes,
   Value<int> amountMinor,
   Value<String> type,
+  Value<String?> savingsMonth,
   Value<String> categoryId,
   Value<int> occurredAt,
   Value<int> createdAt,
@@ -6609,6 +6824,11 @@ class $TransactionsFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get savingsMonth => $composableBuilder(
+    column: $table.savingsMonth,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6700,6 +6920,11 @@ class $TransactionsOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get savingsMonth => $composableBuilder(
+    column: $table.savingsMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get categoryId => $composableBuilder(
     column: $table.categoryId,
     builder: (column) => ColumnOrderings(column),
@@ -6783,6 +7008,11 @@ class $TransactionsAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get savingsMonth => $composableBuilder(
+    column: $table.savingsMonth,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get categoryId => $composableBuilder(
     column: $table.categoryId,
@@ -6868,6 +7098,7 @@ class $TransactionsTableManager
                 Value<String> notes = const Value.absent(),
                 Value<int> amountMinor = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<String?> savingsMonth = const Value.absent(),
                 Value<String> categoryId = const Value.absent(),
                 Value<int> occurredAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -6882,6 +7113,7 @@ class $TransactionsTableManager
                 notes: notes,
                 amountMinor: amountMinor,
                 type: type,
+                savingsMonth: savingsMonth,
                 categoryId: categoryId,
                 occurredAt: occurredAt,
                 createdAt: createdAt,
@@ -6898,6 +7130,7 @@ class $TransactionsTableManager
                 Value<String> notes = const Value.absent(),
                 required int amountMinor,
                 required String type,
+                Value<String?> savingsMonth = const Value.absent(),
                 required String categoryId,
                 required int occurredAt,
                 required int createdAt,
@@ -6912,6 +7145,7 @@ class $TransactionsTableManager
                 notes: notes,
                 amountMinor: amountMinor,
                 type: type,
+                savingsMonth: savingsMonth,
                 categoryId: categoryId,
                 occurredAt: occurredAt,
                 createdAt: createdAt,

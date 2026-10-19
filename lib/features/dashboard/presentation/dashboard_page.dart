@@ -127,6 +127,24 @@ class _ProfileDashboard extends ConsumerStatefulWidget {
 class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   final _deleting = <String>{};
+  bool _savingAutomatic = false;
+
+  Future<void> _setAutomaticSavings(bool value) async {
+    setState(() => _savingAutomatic = true);
+    try {
+      await ref
+          .read(savingsRepositoryProvider)
+          .setAutomatic(widget.profile.id, value, DateTime.now());
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update automatic savings: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingAutomatic = false);
+    }
+  }
 
   String _money(int minor) => formatMoney(
     minor,
@@ -316,8 +334,21 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         else ...[
           Text('Income: ${_money(summary.incomeMinor)}'),
           Text('Expenses: ${_money(summary.expenseMinor)}'),
-          Text('Net income: ${_money(summary.balanceMinor)}'),
+          Text('Savings: ${_money(summary.savingsMinor)}'),
+          Text('Remaining to allocate: ${_money(summary.remainingMinor)}'),
         ],
+        SwitchListTile(
+          key: const Key('automatic-unused-savings'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Automatically save unused money'),
+          subtitle: const Text(
+            'Starting this month, move positive income minus expenses and savings into '
+            'Unused money after month-end, on app launch/resume. Past entries recalculate when transactions change. '
+            'Turning this off stops new sweeps; existing sweeps still recalculate.',
+          ),
+          value: widget.profile.autoSavings,
+          onChanged: _savingAutomatic ? null : _setAutomaticSavings,
+        ),
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,
@@ -345,7 +376,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             FilledButton.icon(
               onPressed:
                   !categories.requireValue.any(
-                    (category) => !category.isArchived,
+                    (category) => !category.isArchived && !category.isSystem,
                   )
                   ? null
                   : () => showDialog<void>(
@@ -400,8 +431,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                     ),
                     if (progress.bucket.id == 'savings') ...[
                       Text('Savings target: ${_money(progress.targetMinor)}'),
-                      const Text(
-                        'Target only; savings transfers are not tracked as spending.',
+                      Text('Saved: ${_money(progress.spentMinor)}'),
+                      LinearProgressIndicator(
+                        value: progress.progress,
+                        semanticsLabel: 'Savings progress',
                       ),
                     ] else ...[
                       Text(
@@ -468,9 +501,12 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                   : transaction.notes,
             ),
             subtitle: Text(
-              '${names[transaction.categoryId] ?? transaction.categoryId} - ${DateFormat.yMMMd().format(transaction.occurredAt.toLocal())}',
+              '${names[transaction.categoryId] ?? transaction.categoryId} - ${DateFormat.yMMMd().format(transaction.occurredAt.toLocal())}'
+              '${transaction.savingsMonth == null ? '' : ' - Automatic; edit source transactions to recalculate'}',
             ),
-            onTap: _deleting.contains(transaction.id)
+            onTap:
+                _deleting.contains(transaction.id) ||
+                    transaction.savingsMonth != null
                 ? null
                 : () => showDialog<void>(
                     context: context,
@@ -490,7 +526,9 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                 IconButton(
                   tooltip:
                       'Delete ${transaction.notes.isEmpty ? names[transaction.categoryId] ?? transaction.categoryId : transaction.notes}',
-                  onPressed: _deleting.contains(transaction.id)
+                  onPressed:
+                      _deleting.contains(transaction.id) ||
+                          transaction.savingsMonth != null
                       ? null
                       : () => _delete(transaction),
                   icon: const Icon(Icons.delete_outline),

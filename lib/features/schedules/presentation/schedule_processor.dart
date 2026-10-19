@@ -23,6 +23,7 @@ class _ScheduleProcessorState extends ConsumerState<ScheduleProcessor>
   bool _running = false;
   bool _again = false;
   List<LocalProfile> _failedProfiles = [];
+  List<LocalProfile> _failedSavings = [];
 
   Future<void> _review(LocalProfile profile) async {
     await Navigator.of(context).push<void>(
@@ -70,10 +71,12 @@ class _ScheduleProcessorState extends ConsumerState<ScheduleProcessor>
     setState(() {
       _running = true;
       _failedProfiles = [];
+      _failedSavings = [];
     });
     do {
       _again = false;
       final failures = <LocalProfile>[];
+      final savingsFailures = <LocalProfile>[];
       final repository = ref.read(scheduleRepositoryProvider);
       for (final profile in [...widget.profiles]) {
         try {
@@ -81,9 +84,19 @@ class _ScheduleProcessorState extends ConsumerState<ScheduleProcessor>
         } on Object {
           failures.add(profile);
         }
+        try {
+          await ref
+              .read(savingsRepositoryProvider)
+              .process(profile.id, DateTime.now());
+        } on Object {
+          savingsFailures.add(profile);
+        }
       }
       if (!mounted) return;
-      setState(() => _failedProfiles = failures);
+      setState(() {
+        _failedProfiles = failures;
+        _failedSavings = savingsFailures;
+      });
     } while (_again && mounted);
     if (mounted) setState(() => _running = false);
   }
@@ -92,6 +105,20 @@ class _ScheduleProcessorState extends ConsumerState<ScheduleProcessor>
   Widget build(BuildContext context) => Column(
     children: [
       if (_running) const LinearProgressIndicator(),
+      for (final profile in _failedSavings.where(
+        (failed) => widget.profiles.any((profile) => profile.id == failed.id),
+      ))
+        MaterialBanner(
+          content: Text(
+            'Unused money savings for "${profile.name}" could not be updated. Check transaction amounts and try again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: _running ? null : _process,
+              child: const Text('Retry savings'),
+            ),
+          ],
+        ),
       for (final profile in _failedProfiles.where(
         (failed) => widget.profiles.any((profile) => profile.id == failed.id),
       ))

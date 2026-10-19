@@ -10,19 +10,11 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) => migrator.createAll(),
-    onUpgrade: (migrator, from, to) async {
-      if (from < 2) {
-        await destructiveFallback.onUpgrade(migrator, from, to);
-      } else if (from < 3) {
-        await migrator.createTable(transactionSchedules);
-        await migrator.createTable(scheduleOccurrences);
-      }
-    },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
 }

@@ -1,4 +1,14 @@
-enum TransactionType { income, expense }
+enum TransactionType {
+  income,
+  expense,
+  savings;
+
+  String get label => switch (this) {
+    income => 'Income',
+    expense => 'Expense',
+    savings => 'Savings',
+  };
+}
 
 class FinancialTransaction {
   FinancialTransaction({
@@ -9,6 +19,7 @@ class FinancialTransaction {
     required this.type,
     required this.categoryId,
     required DateTime occurredAt,
+    this.savingsMonth,
   }) : notes = notes?.trim() ?? '',
        occurredAt = occurredAt.toUtc() {
     if (id.trim().isEmpty ||
@@ -32,4 +43,5 @@ class FinancialTransaction {
   final TransactionType type;
   final String categoryId;
   final DateTime occurredAt;
+  final String? savingsMonth;
 }

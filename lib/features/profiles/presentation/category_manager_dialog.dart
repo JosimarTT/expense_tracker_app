@@ -153,7 +153,7 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
                           ),
                           title: Text(category.name),
                           subtitle: Text(
-                            '${category.type == TransactionType.income ? 'Income' : 'Expense'}'
+                            '${category.type.label}'
                             '${category.type == TransactionType.expense ? ' - ${category.defaultBudgetBucket == 'needs' ? 'Needs' : 'Wants'}' : ''}'
                             '${category.isArchived ? ' - Archived' : ''}',
                           ),
@@ -162,7 +162,8 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
                             children: [
                               IconButton(
                                 tooltip: 'Edit ${category.name}',
-                                onPressed: category.isArchived
+                                onPressed:
+                                    category.isArchived || category.isSystem
                                     ? null
                                     : () => _edit(context, ref, category),
                                 icon: const Icon(Icons.edit_outlined),
@@ -170,7 +171,9 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
                               IconButton(
                                 tooltip:
                                     '${category.isArchived ? 'Restore' : 'Archive'} ${category.name}',
-                                onPressed: () => _archive(category),
+                                onPressed: category.isSystem
+                                    ? null
+                                    : () => _archive(category),
                                 icon: Icon(
                                   category.isArchived
                                       ? Icons.unarchive_outlined

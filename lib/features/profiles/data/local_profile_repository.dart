@@ -24,6 +24,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
             name: row.name,
             currencyCode: row.currencyCode,
             currencyScale: row.currencyScale,
+            autoSavings: row.autoSavings == 1,
           ),
       ],
     );
@@ -98,6 +99,38 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
 
   static const _starterCategories = [
     TransactionCategory(
+      id: 'investments',
+      name: 'Investments',
+      type: TransactionType.savings,
+      iconKey: 'work',
+      colorArgb: 0xFF2E7D32,
+      defaultBudgetBucket: null,
+    ),
+    TransactionCategory(
+      id: 'retirement',
+      name: 'Retirement',
+      type: TransactionType.savings,
+      iconKey: 'home',
+      colorArgb: 0xFF1565C0,
+      defaultBudgetBucket: null,
+    ),
+    TransactionCategory(
+      id: 'emergency_fund',
+      name: 'Emergency fund',
+      type: TransactionType.savings,
+      iconKey: 'health_and_safety',
+      colorArgb: 0xFF00838F,
+      defaultBudgetBucket: null,
+    ),
+    TransactionCategory(
+      id: TransactionCategory.unusedMoneyId,
+      name: 'Unused money',
+      type: TransactionType.savings,
+      iconKey: 'payments',
+      colorArgb: 0xFF2E7D32,
+      defaultBudgetBucket: null,
+    ),
+    TransactionCategory(
       id: 'salary',
       name: 'Salary',
       type: TransactionType.income,
@@ -166,6 +199,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
   @override
   Future<void> save(String profileId, TransactionCategory category) async {
     _requireId(profileId);
+    _requireEditableCategory(category.id);
     if (category.id.trim().isEmpty || category.name.trim().isEmpty) {
       throw ArgumentError('Category name and identifier are required.');
     }
@@ -183,10 +217,10 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
         'Choose a predefined color.',
       );
     }
-    if (category.type == TransactionType.income) {
+    if (category.type != TransactionType.expense) {
       if (category.defaultBudgetBucket != null) {
         throw ArgumentError(
-          'Income categories cannot have an expense budget bucket.',
+          'Only expense categories can have a Needs/Wants budget bucket.',
         );
       }
     } else if (category.defaultBudgetBucket != 'needs' &&
@@ -244,7 +278,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
               budgetReferences != null ||
               scheduleReferences != null)) {
         throw StateError(
-          'A category with transactions cannot change between income and expense. '
+          'A category with history cannot change transaction type. '
           'Archive it and create a new category instead.',
         );
       }
@@ -277,6 +311,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
   }) async {
     _requireId(profileId);
     _requireId(categoryId);
+    if (categoryId == TransactionCategory.unusedMoneyId) return false;
     final references = await _database
         .customSelect(
           '''SELECT EXISTS(
@@ -312,6 +347,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
   }) async {
     _requireId(profileId);
     _requireId(categoryId);
+    _requireEditableCategory(categoryId);
     await _database.transaction(() async {
       final category =
           await (_database.select(_database.categories)..where(
@@ -346,6 +382,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
   }) async {
     _requireId(profileId);
     _requireId(categoryId);
+    _requireEditableCategory(categoryId);
     await _database.transaction(() async {
       final category =
           await (_database.select(_database.categories)..where(
@@ -448,6 +485,14 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
   void _requireId(String id) {
     if (id.trim().isEmpty) {
       throw ArgumentError.value(id, 'id', 'Must not be empty.');
+    }
+  }
+
+  void _requireEditableCategory(String id) {
+    if (id == TransactionCategory.unusedMoneyId) {
+      throw StateError(
+        'Unused money is managed by automatic savings and cannot be changed.',
+      );
     }
   }
 }

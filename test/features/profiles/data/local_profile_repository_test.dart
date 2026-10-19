@@ -117,7 +117,7 @@ void main() {
       expect(await repository.watchProfiles().first, hasLength(1));
       expect((await repository.watchProfiles().first).single.id, 'b');
       expect(await repository.watchCategories('a').first, isEmpty);
-      expect(await repository.watchCategories('b').first, hasLength(8));
+      expect(await repository.watchCategories('b').first, hasLength(12));
       expect(
         await (db.select(
           db.transactions,
@@ -169,7 +169,7 @@ void main() {
       (await repository.watchProfiles().first).map((profile) => profile.id),
       contains('a'),
     );
-    expect(await repository.watchCategories('a').first, hasLength(8));
+    expect(await repository.watchCategories('a').first, hasLength(12));
     expect(
       await (db.select(
         db.transactions,

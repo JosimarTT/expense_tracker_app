@@ -35,13 +35,19 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
       (widget.categories.any(
             (category) =>
                 !category.isArchived &&
+                !category.isSystem &&
                 category.type == TransactionType.expense,
           )
           ? TransactionType.expense
-          : TransactionType.income);
+          : widget.categories
+                .firstWhere(
+                  (category) => !category.isArchived && !category.isSystem,
+                )
+                .type);
   List<TransactionCategory> get _selectableCategories => [
     for (final category in widget.categories)
-      if (!category.isArchived || category.id == widget.existing?.categoryId)
+      if ((!category.isArchived && !category.isSystem) ||
+          category.id == widget.existing?.categoryId)
         category,
   ];
   late String _category =
@@ -129,16 +135,6 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
-            controller: _notes,
-            enabled: !_saving,
-            minLines: 1,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Notes (optional)',
-              hintText: 'Add details about this transaction',
-            ),
-          ),
-          TextField(
             controller: _amount,
             enabled: !_saving,
             keyboardType: TextInputType.numberWithOptions(
@@ -146,9 +142,6 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
             ),
             decoration: InputDecoration(
               labelText: 'Amount (${widget.profile.currencyCode})',
-              helperText: widget.profile.currencyScale == 0
-                  ? 'Enter a whole number.'
-                  : 'Use a dot for decimals (up to ${widget.profile.currencyScale} places).',
             ),
           ),
           DropdownButtonFormField<TransactionType>(
@@ -161,12 +154,7 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
                           category.type == type && !category.isArchived,
                     ) ||
                     type == _type)
-                  DropdownMenuItem(
-                    value: type,
-                    child: Text(
-                      type == TransactionType.income ? 'Income' : 'Expense',
-                    ),
-                  ),
+                  DropdownMenuItem(value: type, child: Text(type.label)),
             ],
             onChanged: _saving
                 ? null
@@ -201,6 +189,16 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
           TextButton(
             onPressed: _saving ? null : _pickDate,
             child: Text('Date: ${DateFormat.yMMMd().format(_date)}'),
+          ),
+          TextField(
+            controller: _notes,
+            enabled: !_saving,
+            minLines: 1,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Notes (optional)',
+              hintText: 'Add details about this transaction',
+            ),
           ),
           if (_error != null)
             Text(

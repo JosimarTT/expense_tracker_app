@@ -7,6 +7,7 @@ import '../../../core/database/app_database.dart'
 import '../../../core/ids/id_generator.dart';
 import '../../transactions/data/repositories/local_transaction_repository.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
+import '../../profiles/domain/profile.dart';
 import '../domain/transaction_schedule.dart';
 
 String scheduleDateText(DateTime date) =>
@@ -62,6 +63,11 @@ class LocalScheduleRepository implements ScheduleRepository {
   @override
   Future<void> save(TransactionSchedule schedule) =>
       _database.transaction(() async {
+        if (schedule.categoryId == TransactionCategory.unusedMoneyId) {
+          throw StateError(
+            'Unused money is reserved for automatic month-end savings.',
+          );
+        }
         final profile =
             await (_database.select(_database.profiles)..where(
                   (row) =>
