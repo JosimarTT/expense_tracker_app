@@ -9,7 +9,7 @@ import 'package:expense_tracker_app/features/transactions/domain/entities/financ
 import 'package:flutter_test/flutter_test.dart';
 
 FinancialTransaction transaction(String id, String profile, [int amount = 100]) => FinancialTransaction(
-  id: id, profileId: profile, title: id, amountMinor: amount,
+  id: id, profileId: profile, notes: id, amountMinor: amount,
   type: TransactionType.expense, categoryId: 'groceries',
   occurredAt: DateTime.utc(2026, 10, 1),
 );

@@ -626,6 +626,42 @@ class Categories extends Table with TableInfo<Categories, Category> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (type IN (\'income\', \'expense\'))',
   );
+  static const VerificationMeta _iconKeyMeta = const VerificationMeta(
+    'iconKey',
+  );
+  late final GeneratedColumn<String> iconKey = GeneratedColumn<String>(
+    'icon_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'category\'',
+    defaultValue: const CustomExpression('\'category\''),
+  );
+  static const VerificationMeta _colorArgbMeta = const VerificationMeta(
+    'colorArgb',
+  );
+  late final GeneratedColumn<int> colorArgb = GeneratedColumn<int>(
+    'color_argb',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 4282365204',
+    defaultValue: const CustomExpression('4282365204'),
+  );
+  static const VerificationMeta _defaultBudgetBucketMeta =
+      const VerificationMeta('defaultBudgetBucket');
+  late final GeneratedColumn<String> defaultBudgetBucket =
+      GeneratedColumn<String>(
+        'default_budget_bucket',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        $customConstraints:
+            'CHECK (default_budget_bucket IN (\'needs\', \'wants\'))',
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -689,6 +725,9 @@ class Categories extends Table with TableInfo<Categories, Category> {
     categoryId,
     name,
     type,
+    iconKey,
+    colorArgb,
+    defaultBudgetBucket,
     createdAt,
     updatedAt,
     deletedAt,
@@ -738,6 +777,27 @@ class Categories extends Table with TableInfo<Categories, Category> {
       );
     } else if (isInserting) {
       context.missing(_typeMeta);
+    }
+    if (data.containsKey('icon_key')) {
+      context.handle(
+        _iconKeyMeta,
+        iconKey.isAcceptableOrUnknown(data['icon_key']!, _iconKeyMeta),
+      );
+    }
+    if (data.containsKey('color_argb')) {
+      context.handle(
+        _colorArgbMeta,
+        colorArgb.isAcceptableOrUnknown(data['color_argb']!, _colorArgbMeta),
+      );
+    }
+    if (data.containsKey('default_budget_bucket')) {
+      context.handle(
+        _defaultBudgetBucketMeta,
+        defaultBudgetBucket.isAcceptableOrUnknown(
+          data['default_budget_bucket']!,
+          _defaultBudgetBucketMeta,
+        ),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -805,6 +865,18 @@ class Categories extends Table with TableInfo<Categories, Category> {
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      iconKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_key'],
+      )!,
+      colorArgb: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_argb'],
+      )!,
+      defaultBudgetBucket: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_budget_bucket'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -847,6 +919,9 @@ class Category extends DataClass implements Insertable<Category> {
   final String categoryId;
   final String name;
   final String type;
+  final String iconKey;
+  final int colorArgb;
+  final String? defaultBudgetBucket;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -857,6 +932,9 @@ class Category extends DataClass implements Insertable<Category> {
     required this.categoryId,
     required this.name,
     required this.type,
+    required this.iconKey,
+    required this.colorArgb,
+    this.defaultBudgetBucket,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -870,6 +948,11 @@ class Category extends DataClass implements Insertable<Category> {
     map['category_id'] = Variable<String>(categoryId);
     map['name'] = Variable<String>(name);
     map['type'] = Variable<String>(type);
+    map['icon_key'] = Variable<String>(iconKey);
+    map['color_argb'] = Variable<int>(colorArgb);
+    if (!nullToAbsent || defaultBudgetBucket != null) {
+      map['default_budget_bucket'] = Variable<String>(defaultBudgetBucket);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -886,6 +969,11 @@ class Category extends DataClass implements Insertable<Category> {
       categoryId: Value(categoryId),
       name: Value(name),
       type: Value(type),
+      iconKey: Value(iconKey),
+      colorArgb: Value(colorArgb),
+      defaultBudgetBucket: defaultBudgetBucket == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultBudgetBucket),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -906,6 +994,11 @@ class Category extends DataClass implements Insertable<Category> {
       categoryId: serializer.fromJson<String>(json['category_id']),
       name: serializer.fromJson<String>(json['name']),
       type: serializer.fromJson<String>(json['type']),
+      iconKey: serializer.fromJson<String>(json['icon_key']),
+      colorArgb: serializer.fromJson<int>(json['color_argb']),
+      defaultBudgetBucket: serializer.fromJson<String?>(
+        json['default_budget_bucket'],
+      ),
       createdAt: serializer.fromJson<int>(json['created_at']),
       updatedAt: serializer.fromJson<int>(json['updated_at']),
       deletedAt: serializer.fromJson<int?>(json['deleted_at']),
@@ -921,6 +1014,9 @@ class Category extends DataClass implements Insertable<Category> {
       'category_id': serializer.toJson<String>(categoryId),
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<String>(type),
+      'icon_key': serializer.toJson<String>(iconKey),
+      'color_argb': serializer.toJson<int>(colorArgb),
+      'default_budget_bucket': serializer.toJson<String?>(defaultBudgetBucket),
       'created_at': serializer.toJson<int>(createdAt),
       'updated_at': serializer.toJson<int>(updatedAt),
       'deleted_at': serializer.toJson<int?>(deletedAt),
@@ -934,6 +1030,9 @@ class Category extends DataClass implements Insertable<Category> {
     String? categoryId,
     String? name,
     String? type,
+    String? iconKey,
+    int? colorArgb,
+    Value<String?> defaultBudgetBucket = const Value.absent(),
     int? createdAt,
     int? updatedAt,
     Value<int?> deletedAt = const Value.absent(),
@@ -944,6 +1043,11 @@ class Category extends DataClass implements Insertable<Category> {
     categoryId: categoryId ?? this.categoryId,
     name: name ?? this.name,
     type: type ?? this.type,
+    iconKey: iconKey ?? this.iconKey,
+    colorArgb: colorArgb ?? this.colorArgb,
+    defaultBudgetBucket: defaultBudgetBucket.present
+        ? defaultBudgetBucket.value
+        : this.defaultBudgetBucket,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -958,6 +1062,11 @@ class Category extends DataClass implements Insertable<Category> {
           : this.categoryId,
       name: data.name.present ? data.name.value : this.name,
       type: data.type.present ? data.type.value : this.type,
+      iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
+      colorArgb: data.colorArgb.present ? data.colorArgb.value : this.colorArgb,
+      defaultBudgetBucket: data.defaultBudgetBucket.present
+          ? data.defaultBudgetBucket.value
+          : this.defaultBudgetBucket,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -975,6 +1084,9 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('colorArgb: $colorArgb, ')
+          ..write('defaultBudgetBucket: $defaultBudgetBucket, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -990,6 +1102,9 @@ class Category extends DataClass implements Insertable<Category> {
     categoryId,
     name,
     type,
+    iconKey,
+    colorArgb,
+    defaultBudgetBucket,
     createdAt,
     updatedAt,
     deletedAt,
@@ -1004,6 +1119,9 @@ class Category extends DataClass implements Insertable<Category> {
           other.categoryId == this.categoryId &&
           other.name == this.name &&
           other.type == this.type &&
+          other.iconKey == this.iconKey &&
+          other.colorArgb == this.colorArgb &&
+          other.defaultBudgetBucket == this.defaultBudgetBucket &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
@@ -1016,6 +1134,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> categoryId;
   final Value<String> name;
   final Value<String> type;
+  final Value<String> iconKey;
+  final Value<int> colorArgb;
+  final Value<String?> defaultBudgetBucket;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> deletedAt;
@@ -1027,6 +1148,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.categoryId = const Value.absent(),
     this.name = const Value.absent(),
     this.type = const Value.absent(),
+    this.iconKey = const Value.absent(),
+    this.colorArgb = const Value.absent(),
+    this.defaultBudgetBucket = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -1039,6 +1163,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     required String categoryId,
     required String name,
     required String type,
+    this.iconKey = const Value.absent(),
+    this.colorArgb = const Value.absent(),
+    this.defaultBudgetBucket = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.deletedAt = const Value.absent(),
@@ -1056,6 +1183,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? categoryId,
     Expression<String>? name,
     Expression<String>? type,
+    Expression<String>? iconKey,
+    Expression<int>? colorArgb,
+    Expression<String>? defaultBudgetBucket,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? deletedAt,
@@ -1068,6 +1198,10 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (categoryId != null) 'category_id': categoryId,
       if (name != null) 'name': name,
       if (type != null) 'type': type,
+      if (iconKey != null) 'icon_key': iconKey,
+      if (colorArgb != null) 'color_argb': colorArgb,
+      if (defaultBudgetBucket != null)
+        'default_budget_bucket': defaultBudgetBucket,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -1082,6 +1216,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<String>? categoryId,
     Value<String>? name,
     Value<String>? type,
+    Value<String>? iconKey,
+    Value<int>? colorArgb,
+    Value<String?>? defaultBudgetBucket,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? deletedAt,
@@ -1094,6 +1231,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       categoryId: categoryId ?? this.categoryId,
       name: name ?? this.name,
       type: type ?? this.type,
+      iconKey: iconKey ?? this.iconKey,
+      colorArgb: colorArgb ?? this.colorArgb,
+      defaultBudgetBucket: defaultBudgetBucket ?? this.defaultBudgetBucket,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -1117,6 +1257,17 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (iconKey.present) {
+      map['icon_key'] = Variable<String>(iconKey.value);
+    }
+    if (colorArgb.present) {
+      map['color_argb'] = Variable<int>(colorArgb.value);
+    }
+    if (defaultBudgetBucket.present) {
+      map['default_budget_bucket'] = Variable<String>(
+        defaultBudgetBucket.value,
+      );
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -1146,6 +1297,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('colorArgb: $colorArgb, ')
+          ..write('defaultBudgetBucket: $defaultBudgetBucket, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -1184,14 +1338,15 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (length(trim(transaction_id)) > 0)',
   );
-  static const VerificationMeta _titleMeta = const VerificationMeta('title');
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL CHECK (length(trim(title)) > 0)',
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'\'',
+    defaultValue: const CustomExpression('\'\''),
   );
   static const VerificationMeta _amountMinorMeta = const VerificationMeta(
     'amountMinor',
@@ -1296,7 +1451,7 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
   List<GeneratedColumn> get $columns => [
     profileId,
     transactionId,
-    title,
+    notes,
     amountMinor,
     type,
     categoryId,
@@ -1338,13 +1493,11 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     } else if (isInserting) {
       context.missing(_transactionIdMeta);
     }
-    if (data.containsKey('title')) {
+    if (data.containsKey('notes')) {
       context.handle(
-        _titleMeta,
-        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
-    } else if (isInserting) {
-      context.missing(_titleMeta);
     }
     if (data.containsKey('amount_minor')) {
       context.handle(
@@ -1435,9 +1588,9 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
         DriftSqlType.string,
         data['${effectivePrefix}transaction_id'],
       )!,
-      title: attachedDatabase.typeMapping.read(
+      notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}title'],
+        data['${effectivePrefix}notes'],
       )!,
       amountMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1495,7 +1648,7 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
 class Transaction extends DataClass implements Insertable<Transaction> {
   final String profileId;
   final String transactionId;
-  final String title;
+  final String notes;
   final int amountMinor;
   final String type;
   final String categoryId;
@@ -1508,7 +1661,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   const Transaction({
     required this.profileId,
     required this.transactionId,
-    required this.title,
+    required this.notes,
     required this.amountMinor,
     required this.type,
     required this.categoryId,
@@ -1524,7 +1677,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     final map = <String, Expression>{};
     map['profile_id'] = Variable<String>(profileId);
     map['transaction_id'] = Variable<String>(transactionId);
-    map['title'] = Variable<String>(title);
+    map['notes'] = Variable<String>(notes);
     map['amount_minor'] = Variable<int>(amountMinor);
     map['type'] = Variable<String>(type);
     map['category_id'] = Variable<String>(categoryId);
@@ -1543,7 +1696,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     return TransactionsCompanion(
       profileId: Value(profileId),
       transactionId: Value(transactionId),
-      title: Value(title),
+      notes: Value(notes),
       amountMinor: Value(amountMinor),
       type: Value(type),
       categoryId: Value(categoryId),
@@ -1566,7 +1719,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     return Transaction(
       profileId: serializer.fromJson<String>(json['profile_id']),
       transactionId: serializer.fromJson<String>(json['transaction_id']),
-      title: serializer.fromJson<String>(json['title']),
+      notes: serializer.fromJson<String>(json['notes']),
       amountMinor: serializer.fromJson<int>(json['amount_minor']),
       type: serializer.fromJson<String>(json['type']),
       categoryId: serializer.fromJson<String>(json['category_id']),
@@ -1584,7 +1737,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     return <String, dynamic>{
       'profile_id': serializer.toJson<String>(profileId),
       'transaction_id': serializer.toJson<String>(transactionId),
-      'title': serializer.toJson<String>(title),
+      'notes': serializer.toJson<String>(notes),
       'amount_minor': serializer.toJson<int>(amountMinor),
       'type': serializer.toJson<String>(type),
       'category_id': serializer.toJson<String>(categoryId),
@@ -1600,7 +1753,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   Transaction copyWith({
     String? profileId,
     String? transactionId,
-    String? title,
+    String? notes,
     int? amountMinor,
     String? type,
     String? categoryId,
@@ -1613,7 +1766,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   }) => Transaction(
     profileId: profileId ?? this.profileId,
     transactionId: transactionId ?? this.transactionId,
-    title: title ?? this.title,
+    notes: notes ?? this.notes,
     amountMinor: amountMinor ?? this.amountMinor,
     type: type ?? this.type,
     categoryId: categoryId ?? this.categoryId,
@@ -1630,7 +1783,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       transactionId: data.transactionId.present
           ? data.transactionId.value
           : this.transactionId,
-      title: data.title.present ? data.title.value : this.title,
+      notes: data.notes.present ? data.notes.value : this.notes,
       amountMinor: data.amountMinor.present
           ? data.amountMinor.value
           : this.amountMinor,
@@ -1656,7 +1809,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     return (StringBuffer('Transaction(')
           ..write('profileId: $profileId, ')
           ..write('transactionId: $transactionId, ')
-          ..write('title: $title, ')
+          ..write('notes: $notes, ')
           ..write('amountMinor: $amountMinor, ')
           ..write('type: $type, ')
           ..write('categoryId: $categoryId, ')
@@ -1674,7 +1827,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   int get hashCode => Object.hash(
     profileId,
     transactionId,
-    title,
+    notes,
     amountMinor,
     type,
     categoryId,
@@ -1691,7 +1844,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       (other is Transaction &&
           other.profileId == this.profileId &&
           other.transactionId == this.transactionId &&
-          other.title == this.title &&
+          other.notes == this.notes &&
           other.amountMinor == this.amountMinor &&
           other.type == this.type &&
           other.categoryId == this.categoryId &&
@@ -1706,7 +1859,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String> profileId;
   final Value<String> transactionId;
-  final Value<String> title;
+  final Value<String> notes;
   final Value<int> amountMinor;
   final Value<String> type;
   final Value<String> categoryId;
@@ -1720,7 +1873,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   const TransactionsCompanion({
     this.profileId = const Value.absent(),
     this.transactionId = const Value.absent(),
-    this.title = const Value.absent(),
+    this.notes = const Value.absent(),
     this.amountMinor = const Value.absent(),
     this.type = const Value.absent(),
     this.categoryId = const Value.absent(),
@@ -1735,7 +1888,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   TransactionsCompanion.insert({
     required String profileId,
     required String transactionId,
-    required String title,
+    this.notes = const Value.absent(),
     required int amountMinor,
     required String type,
     required String categoryId,
@@ -1748,7 +1901,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.rowid = const Value.absent(),
   }) : profileId = Value(profileId),
        transactionId = Value(transactionId),
-       title = Value(title),
        amountMinor = Value(amountMinor),
        type = Value(type),
        categoryId = Value(categoryId),
@@ -1758,7 +1910,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   static Insertable<Transaction> custom({
     Expression<String>? profileId,
     Expression<String>? transactionId,
-    Expression<String>? title,
+    Expression<String>? notes,
     Expression<int>? amountMinor,
     Expression<String>? type,
     Expression<String>? categoryId,
@@ -1773,7 +1925,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     return RawValuesInsertable({
       if (profileId != null) 'profile_id': profileId,
       if (transactionId != null) 'transaction_id': transactionId,
-      if (title != null) 'title': title,
+      if (notes != null) 'notes': notes,
       if (amountMinor != null) 'amount_minor': amountMinor,
       if (type != null) 'type': type,
       if (categoryId != null) 'category_id': categoryId,
@@ -1790,7 +1942,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   TransactionsCompanion copyWith({
     Value<String>? profileId,
     Value<String>? transactionId,
-    Value<String>? title,
+    Value<String>? notes,
     Value<int>? amountMinor,
     Value<String>? type,
     Value<String>? categoryId,
@@ -1805,7 +1957,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     return TransactionsCompanion(
       profileId: profileId ?? this.profileId,
       transactionId: transactionId ?? this.transactionId,
-      title: title ?? this.title,
+      notes: notes ?? this.notes,
       amountMinor: amountMinor ?? this.amountMinor,
       type: type ?? this.type,
       categoryId: categoryId ?? this.categoryId,
@@ -1828,8 +1980,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (transactionId.present) {
       map['transaction_id'] = Variable<String>(transactionId.value);
     }
-    if (title.present) {
-      map['title'] = Variable<String>(title.value);
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
     }
     if (amountMinor.present) {
       map['amount_minor'] = Variable<int>(amountMinor.value);
@@ -1869,7 +2021,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     return (StringBuffer('TransactionsCompanion(')
           ..write('profileId: $profileId, ')
           ..write('transactionId: $transactionId, ')
-          ..write('title: $title, ')
+          ..write('notes: $notes, ')
           ..write('amountMinor: $amountMinor, ')
           ..write('type: $type, ')
           ..write('categoryId: $categoryId, ')
@@ -4313,6 +4465,9 @@ typedef $CategoriesCreateCompanionBuilder = CategoriesCompanion Function({
   required String categoryId,
   required String name,
   required String type,
+  Value<String> iconKey,
+  Value<int> colorArgb,
+  Value<String?> defaultBudgetBucket,
   required int createdAt,
   required int updatedAt,
   Value<int?> deletedAt,
@@ -4325,6 +4480,9 @@ typedef $CategoriesUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<String> categoryId,
   Value<String> name,
   Value<String> type,
+  Value<String> iconKey,
+  Value<int> colorArgb,
+  Value<String?> defaultBudgetBucket,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int?> deletedAt,
@@ -4375,6 +4533,21 @@ class $CategoriesFilterComposer extends Composer<_$AppDatabase, Categories> {
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorArgb => $composableBuilder(
+    column: $table.colorArgb,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultBudgetBucket => $composableBuilder(
+    column: $table.defaultBudgetBucket,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4450,6 +4623,21 @@ class $CategoriesOrderingComposer extends Composer<_$AppDatabase, Categories> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorArgb => $composableBuilder(
+    column: $table.colorArgb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get defaultBudgetBucket => $composableBuilder(
+    column: $table.defaultBudgetBucket,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -4518,6 +4706,17 @@ class $CategoriesAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get iconKey =>
+      $composableBuilder(column: $table.iconKey, builder: (column) => column);
+
+  GeneratedColumn<int> get colorArgb =>
+      $composableBuilder(column: $table.colorArgb, builder: (column) => column);
+
+  GeneratedColumn<String> get defaultBudgetBucket => $composableBuilder(
+    column: $table.defaultBudgetBucket,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4592,6 +4791,9 @@ class $CategoriesTableManager
                 Value<String> categoryId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<String> iconKey = const Value.absent(),
+                Value<int> colorArgb = const Value.absent(),
+                Value<String?> defaultBudgetBucket = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> deletedAt = const Value.absent(),
@@ -4603,6 +4805,9 @@ class $CategoriesTableManager
                 categoryId: categoryId,
                 name: name,
                 type: type,
+                iconKey: iconKey,
+                colorArgb: colorArgb,
+                defaultBudgetBucket: defaultBudgetBucket,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -4616,6 +4821,9 @@ class $CategoriesTableManager
                 required String categoryId,
                 required String name,
                 required String type,
+                Value<String> iconKey = const Value.absent(),
+                Value<int> colorArgb = const Value.absent(),
+                Value<String?> defaultBudgetBucket = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> deletedAt = const Value.absent(),
@@ -4627,6 +4835,9 @@ class $CategoriesTableManager
                 categoryId: categoryId,
                 name: name,
                 type: type,
+                iconKey: iconKey,
+                colorArgb: colorArgb,
+                defaultBudgetBucket: defaultBudgetBucket,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -4703,7 +4914,7 @@ typedef $CategoriesProcessedTableManager =
 typedef $TransactionsCreateCompanionBuilder = TransactionsCompanion Function({
   required String profileId,
   required String transactionId,
-  required String title,
+  Value<String> notes,
   required int amountMinor,
   required String type,
   required String categoryId,
@@ -4718,7 +4929,7 @@ typedef $TransactionsCreateCompanionBuilder = TransactionsCompanion Function({
 typedef $TransactionsUpdateCompanionBuilder = TransactionsCompanion Function({
   Value<String> profileId,
   Value<String> transactionId,
-  Value<String> title,
+  Value<String> notes,
   Value<int> amountMinor,
   Value<String> type,
   Value<String> categoryId,
@@ -4767,8 +4978,8 @@ class $TransactionsFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get title => $composableBuilder(
-    column: $table.title,
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4855,8 +5066,8 @@ class $TransactionsOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get title => $composableBuilder(
-    column: $table.title,
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4943,8 +5154,8 @@ class $TransactionsAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => column);
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<int> get amountMinor => $composableBuilder(
     column: $table.amountMinor,
@@ -5035,7 +5246,7 @@ class $TransactionsTableManager
               ({
                 Value<String> profileId = const Value.absent(),
                 Value<String> transactionId = const Value.absent(),
-                Value<String> title = const Value.absent(),
+                Value<String> notes = const Value.absent(),
                 Value<int> amountMinor = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String> categoryId = const Value.absent(),
@@ -5049,7 +5260,7 @@ class $TransactionsTableManager
               }) => TransactionsCompanion(
                 profileId: profileId,
                 transactionId: transactionId,
-                title: title,
+                notes: notes,
                 amountMinor: amountMinor,
                 type: type,
                 categoryId: categoryId,
@@ -5065,7 +5276,7 @@ class $TransactionsTableManager
               ({
                 required String profileId,
                 required String transactionId,
-                required String title,
+                Value<String> notes = const Value.absent(),
                 required int amountMinor,
                 required String type,
                 required String categoryId,
@@ -5079,7 +5290,7 @@ class $TransactionsTableManager
               }) => TransactionsCompanion.insert(
                 profileId: profileId,
                 transactionId: transactionId,
-                title: title,
+                notes: notes,
                 amountMinor: amountMinor,
                 type: type,
                 categoryId: categoryId,

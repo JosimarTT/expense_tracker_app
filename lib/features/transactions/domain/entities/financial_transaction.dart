@@ -4,18 +4,17 @@ class FinancialTransaction {
   FinancialTransaction({
     required this.id,
     required this.profileId,
-    required String title,
+    String? notes,
     required this.amountMinor,
     required this.type,
     required this.categoryId,
     required DateTime occurredAt,
-  }) : title = title.trim(),
+  }) : notes = notes?.trim() ?? '',
        occurredAt = occurredAt.toUtc() {
     if (id.trim().isEmpty ||
         profileId.trim().isEmpty ||
-        categoryId.trim().isEmpty ||
-        this.title.isEmpty) {
-      throw ArgumentError('Transaction identifiers and title must not be empty.');
+        categoryId.trim().isEmpty) {
+      throw ArgumentError('Transaction identifiers must not be empty.');
     }
     if (amountMinor <= 0 || amountMinor > 9223372036854775807) {
       throw ArgumentError.value(
@@ -28,7 +27,7 @@ class FinancialTransaction {
 
   final String id;
   final String profileId;
-  final String title;
+  final String notes;
   final int amountMinor;
   final TransactionType type;
   final String categoryId;

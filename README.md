@@ -12,20 +12,23 @@ The local MVP now includes:
    categories per profile. Currency is fixed after creation. The active selection
    is session-local; startup selects the first profile.
 2. Income/expense creation, editing by tapping a transaction, confirmed deletion,
-   exact decimal amount input, category selection, and date selection.
+   optional notes, category selection, and date selection.
 3. A reactive monthly dashboard with income, expenses, net income, month
    navigation, explicit errors/retry, and profile-isolated transaction lists.
 4. An editable monthly Needs/Wants/Savings split (50/30/20 initially), expense
    category mappings, progress bars, overspending amounts, unallocated expenses,
    and a savings target. There is no bank balance or savings-transfer tracking.
 5. Atomic budget storage, revisions/tombstones, and a development-only sync
-   interface/mock preview. No schema change was necessary from version 1.
+   interface/mock preview.
 6. Permanent profile deletion with an exact `DELETE` confirmation and atomic
    removal of that profile's transactions, categories, and budgets.
+7. Per-profile category management: create, edit, archive/remove, predefined
+   Material icons, and a curated color palette. Expense categories have a
+   Needs/Wants default used only when setting up future budgets.
 
-Next milestones are custom category management, backup/export and restore,
-pagination and date-indexed reporting for large histories, on-device lifecycle
-testing, and migration testing. Real cloud sync, authentication, subscriptions,
+Next milestones are backup/export and restore, pagination and date-indexed
+reporting for large histories, on-device lifecycle testing, and production-safe
+migration testing. Real cloud sync, authentication, subscriptions,
 tenant memberships, shared editing, OCR, bank integrations, transfers, and
 multi-currency conversion are not implemented.
 
@@ -71,6 +74,8 @@ lib/
       domain/profile.dart           # Profile/category models and repository
       data/local_profile_repository.dart
       presentation/profile_dialog.dart
+      category_editor_dialog.dart
+      category_manager_dialog.dart
     transactions/
       domain/
         entities/financial_transaction.dart
@@ -160,8 +165,8 @@ encryption.
 | Table | Key | Purpose |
 | --- | --- | --- |
 | `profiles` | `profile_id` | Local financial workspace, name, currency, scale. A profile is not a login identity. |
-| `categories` | `(profile_id, category_id)` | User-defined income/expense classifications. |
-| `transactions` | `(profile_id, transaction_id)` | Title, positive amount, type, category, occurrence timestamp. Category type must match transaction type. Indexed by profile/date. |
+| `categories` | `(profile_id, category_id)` | User-defined income/expense classifications, presentation metadata, default budget bucket, and archive state. |
+| `transactions` | `(profile_id, transaction_id)` | Optional notes, positive amount, type, category, occurrence timestamp. Category type must match transaction type. Indexed by profile/date. |
 | `budgets` | `(profile_id, budget_id)` | Named rule for a bounded reporting period. |
 | `budget_buckets` | `(profile_id, budget_id, bucket_id)` | Arbitrary user-defined labels and allocation percentages. |
 | `budget_category_allocations` | `(profile_id, budget_id, category_id)` | Assigns a category to exactly one bucket per budget; different budgets can classify it differently. |
@@ -195,6 +200,16 @@ Needs/Wants/unassigned mappings. The domain/database remain flexible enough for
 arbitrary buckets. Savings is an allocation target, not automatically an expense. True savings
 account transfers require an accounts/transfer model and must not be counted as
 spending or new income.
+
+Transaction notes are optional and do not affect financial calculations. Category
+names, icons, and colors are editable; those changes also change how historical
+transactions are displayed because records reference the category. Removing a
+category with transaction or budget references archives it to preserve history.
+An unused category can be permanently removed. A category cannot switch between
+income and expense while transactions or budget mappings reference it. Changing
+an expense category's Needs/Wants default affects new budget mappings only;
+existing budget rules keep their saved assignments. Icons are selected from a
+predefined Material icon set; user-uploaded icons are not supported.
 
 ### Change metadata
 
@@ -286,14 +301,17 @@ flutter analyze
 flutter test
 ```
 
-Regenerate bindings after changing the schema. Version 1 is the initial schema;
-before releasing a schema change, increment `schemaVersion`, implement a
-non-destructive migration, export schema snapshots using Drift's migration
-tooling, and test upgrades from every supported released version. Do not delete
-the user's database to resolve migrations.
+Regenerate bindings after changing the schema. Schema version 2 currently uses
+Drift's destructive fallback to drop and recreate the database on upgrade. This
+is an intentional pre-release reset because there are no consumer data or
+compatibility commitments yet; existing local data is permanently lost on such
+an upgrade. Before any public release, replace this with non-destructive
+migrations, export schema snapshots using Drift's migration tooling, and test
+upgrades from every supported released version. Never use destructive fallback
+to resolve migrations after release.
 
 Tests cover profile isolation, cross-profile foreign-key rejection, exact money
-storage, category type enforcement, reactive updates, revision/dirty tracking,
+storage, category CRUD/archive/type enforcement, notes, reactive updates, revision/dirty tracking,
 tombstones, atomic budget operations, percentages/category uniqueness, budget
 math/rounding/boundaries, sync previews/conflicts, profile switching, and UI
 creation/entry flows. A file-backed SQLite test verifies close/reopen persistence.
@@ -305,7 +323,7 @@ WASM/worker and browser-persistence setup; do not advertise web support yet.
 ## Roadmap ideas
 
 - Local/free: recurring-entry templates, CSV export/import with validation,
-  search, custom categories, budget reminders, and accessibility.
+  search, budget reminders, and accessibility.
 - Premium: encrypted cloud backup/sync, shared household workspaces with roles,
   audit history, multiple budget scenarios, and richer trend reports.
 - Later: accounts and transfers, savings goals, receipt attachments with explicit

@@ -9,6 +9,8 @@ import '../../budgets/domain/entities/budget_rule.dart';
 import '../../budgets/presentation/budget_dialog.dart';
 import '../../profiles/domain/profile.dart';
 import '../../profiles/presentation/delete_profile_dialog.dart';
+import '../../profiles/presentation/category_manager_dialog.dart';
+import '../../profiles/presentation/category_editor_dialog.dart';
 import '../../profiles/presentation/profile_dialog.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
@@ -315,6 +317,15 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           spacing: 8,
           runSpacing: 8,
           children: [
+            OutlinedButton.icon(
+              key: const Key('manage-categories'),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => CategoryManagerDialog(profileId: id),
+              ),
+              icon: const Icon(Icons.category_outlined),
+              label: const Text('Manage categories'),
+            ),
             FilledButton.icon(
               onPressed: categories.requireValue.isEmpty
                   ? null
@@ -411,7 +422,32 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         for (final transaction in monthly)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(transaction.title),
+            leading: CircleAvatar(
+              backgroundColor: Color(
+                categories.requireValue
+                        .where(
+                          (category) => category.id == transaction.categoryId,
+                        )
+                        .firstOrNull
+                        ?.colorArgb ??
+                    0xFF455A64,
+              ),
+              child: Icon(
+                categoryIcons[categories.requireValue
+                        .where(
+                          (category) => category.id == transaction.categoryId,
+                        )
+                        .firstOrNull
+                        ?.iconKey] ??
+                    Icons.category,
+                color: Colors.white,
+              ),
+            ),
+            title: Text(
+              transaction.notes.isEmpty
+                  ? names[transaction.categoryId] ?? transaction.categoryId
+                  : transaction.notes,
+            ),
             subtitle: Text(
               '${names[transaction.categoryId] ?? transaction.categoryId} - ${DateFormat.yMMMd().format(transaction.occurredAt.toLocal())}',
             ),
@@ -433,7 +469,8 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                   '${transaction.type == TransactionType.income ? '+' : '-'}${_money(transaction.amountMinor)}',
                 ),
                 IconButton(
-                  tooltip: 'Delete ${transaction.title}',
+                  tooltip:
+                      'Delete ${transaction.notes.isEmpty ? names[transaction.categoryId] ?? transaction.categoryId : transaction.notes}',
                   onPressed: _deleting.contains(transaction.id)
                       ? null
                       : () => _delete(transaction),

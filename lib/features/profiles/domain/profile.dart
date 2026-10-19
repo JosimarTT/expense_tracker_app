@@ -19,11 +19,24 @@ class TransactionCategory {
     required this.id,
     required this.name,
     required this.type,
+    required this.iconKey,
+    required this.colorArgb,
+    required this.defaultBudgetBucket,
+    this.isArchived = false,
   });
 
   final String id;
   final String name;
   final TransactionType type;
+  final String iconKey;
+  final int colorArgb;
+  final String? defaultBudgetBucket;
+  final bool isArchived;
+}
+
+abstract interface class CategoryRepository {
+  Future<void> save(String profileId, TransactionCategory category);
+  Future<void> delete({required String profileId, required String categoryId});
 }
 
 abstract interface class ProfileRepository {

@@ -16,7 +16,7 @@ class SyncTransaction {
   bool sameContent(SyncTransaction other) =>
       transaction.id == other.transaction.id &&
       transaction.profileId == other.transaction.profileId &&
-      transaction.title == other.transaction.title &&
+      transaction.notes == other.transaction.notes &&
       transaction.amountMinor == other.transaction.amountMinor &&
       transaction.type == other.transaction.type &&
       transaction.categoryId == other.transaction.categoryId &&

@@ -24,38 +24,57 @@ class TransactionDialog extends ConsumerStatefulWidget {
 }
 
 class _TransactionDialogState extends ConsumerState<TransactionDialog> {
-  late final _title = TextEditingController(text: widget.existing?.title);
+  late final _notes = TextEditingController(text: widget.existing?.notes);
   late final _amount = TextEditingController(
-    text: widget.existing == null ? '' : _amountText(widget.existing!.amountMinor),
+    text: widget.existing == null
+        ? ''
+        : _amountText(widget.existing!.amountMinor),
   );
   late TransactionType _type = widget.existing?.type ?? TransactionType.expense;
-  late String _category = widget.existing?.categoryId ??
-      widget.categories.firstWhere((category) => category.type == _type).id;
+  List<TransactionCategory> get _selectableCategories => [
+    for (final category in widget.categories)
+      if (!category.isArchived || category.id == widget.existing?.categoryId)
+        category,
+  ];
+  late String _category =
+      widget.existing?.categoryId ??
+      _selectableCategories.firstWhere((category) => category.type == _type).id;
   late DateTime _date = widget.existing?.occurredAt.toLocal() ?? DateTime.now();
   bool _saving = false;
   String? _error;
 
   String _amountText(int minor) {
-    final digits = minor.toString().padLeft(widget.profile.currencyScale + 1, '0');
+    final digits = minor.toString().padLeft(
+      widget.profile.currencyScale + 1,
+      '0',
+    );
     final split = digits.length - widget.profile.currencyScale;
-    return widget.profile.currencyScale == 0 ? digits : '${digits.substring(0, split)}.${digits.substring(split)}';
+    return widget.profile.currencyScale == 0
+        ? digits
+        : '${digits.substring(0, split)}.${digits.substring(split)}';
   }
 
   @override
   void dispose() {
-    _title.dispose();
+    _notes.dispose();
     _amount.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final value = FinancialTransaction(
         id: widget.existing?.id ?? ref.read(idGeneratorProvider).generate(),
         profileId: widget.profile.id,
-        title: _title.text,
-        amountMinor: parseScaledDecimal(_amount.text, widget.profile.currencyScale),
+        notes: _notes.text,
+        amountMinor: parseScaledDecimal(
+          _amount.text,
+          widget.profile.currencyScale,
+        ),
         type: _type,
         categoryId: _category,
         occurredAt: _date,
@@ -63,7 +82,12 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
       await ref.read(transactionRepositoryProvider).save(value);
       if (mounted) Navigator.pop(context);
     } on Object catch (error) {
-      if (mounted) setState(() { _saving = false; _error = 'Could not save transaction: $error'; });
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not save transaction: $error';
+        });
+      }
     }
   }
 
@@ -75,53 +99,108 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
       lastDate: DateTime(2200),
     );
     if (selected != null && mounted) {
-      setState(() => _date = DateTime(
-        selected.year, selected.month, selected.day, _date.hour, _date.minute,
-      ));
+      setState(
+        () => _date = DateTime(
+          selected.year,
+          selected.month,
+          selected.day,
+          _date.hour,
+          _date.minute,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.existing == null ? 'Add transaction' : 'Edit transaction'),
+    title: Text(
+      widget.existing == null ? 'Add transaction' : 'Edit transaction',
+    ),
     content: SingleChildScrollView(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: _title, enabled: !_saving, decoration: const InputDecoration(labelText: 'Title')),
-        TextField(
-          controller: _amount,
-          enabled: !_saving,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: 'Amount (${widget.profile.currencyCode})', helperText: 'Use a dot for decimals, e.g. 12.50'),
-        ),
-        DropdownButtonFormField<TransactionType>(
-          initialValue: _type,
-          decoration: const InputDecoration(labelText: 'Type'),
-          items: [
-            for (final type in TransactionType.values)
-              DropdownMenuItem(value: type, child: Text(type == TransactionType.income ? 'Income' : 'Expense')),
-          ],
-          onChanged: _saving ? null : (value) => setState(() {
-            _type = value!;
-            _category = widget.categories.firstWhere((category) => category.type == _type).id;
-          }),
-        ),
-        DropdownButtonFormField<String>(
-          key: ValueKey(_type),
-          initialValue: _category,
-          decoration: const InputDecoration(labelText: 'Category'),
-          items: [
-            for (final category in widget.categories.where((category) => category.type == _type))
-              DropdownMenuItem(value: category.id, child: Text(category.name)),
-          ],
-          onChanged: _saving ? null : (value) => setState(() => _category = value!),
-        ),
-        TextButton(onPressed: _saving ? null : _pickDate, child: Text('Date: ${DateFormat.yMMMd().format(_date)}')),
-        if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _notes,
+            enabled: !_saving,
+            minLines: 1,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Notes (optional)',
+              hintText: 'Add details about this transaction',
+            ),
+          ),
+          TextField(
+            controller: _amount,
+            enabled: !_saving,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Amount (${widget.profile.currencyCode})',
+              helperText: 'Use a dot for decimals, e.g. 12.50',
+            ),
+          ),
+          DropdownButtonFormField<TransactionType>(
+            initialValue: _type,
+            decoration: const InputDecoration(labelText: 'Type'),
+            items: [
+              for (final type in TransactionType.values)
+                DropdownMenuItem(
+                  value: type,
+                  child: Text(
+                    type == TransactionType.income ? 'Income' : 'Expense',
+                  ),
+                ),
+            ],
+            onChanged: _saving
+                ? null
+                : (value) => setState(() {
+                    _type = value!;
+                    _category = _selectableCategories
+                        .firstWhere(
+                          (category) =>
+                              category.type == _type && !category.isArchived,
+                        )
+                        .id;
+                  }),
+          ),
+          DropdownButtonFormField<String>(
+            key: ValueKey(_type),
+            initialValue: _category,
+            decoration: const InputDecoration(labelText: 'Category'),
+            items: [
+              for (final category in _selectableCategories.where(
+                (category) => category.type == _type,
+              ))
+                DropdownMenuItem(
+                  value: category.id,
+                  child: Text(category.name),
+                ),
+            ],
+            onChanged: _saving
+                ? null
+                : (value) => setState(() => _category = value!),
+          ),
+          TextButton(
+            onPressed: _saving ? null : _pickDate,
+            child: Text('Date: ${DateFormat.yMMMd().format(_date)}'),
+          ),
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      ),
     ),
     actions: [
-      TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving...' : 'Save')),
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'Saving...' : 'Save'),
+      ),
     ],
   );
 }

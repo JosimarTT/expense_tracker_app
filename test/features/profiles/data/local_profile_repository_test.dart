@@ -36,7 +36,7 @@ Future<void> addTransaction(AppDatabase db, String profileId) =>
       FinancialTransaction(
         id: 'transaction',
         profileId: profileId,
-        title: 'Groceries',
+        notes: 'Groceries',
         amountMinor: 1000,
         type: TransactionType.expense,
         categoryId: 'groceries',

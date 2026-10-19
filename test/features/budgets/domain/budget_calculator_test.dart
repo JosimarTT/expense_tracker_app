@@ -16,7 +16,7 @@ BudgetRule monthlyRule() => BudgetRule(
 FinancialTransaction entry(String id, int amount, TransactionType type, {
   String category = 'food', String profile = 'a', DateTime? date,
 }) => FinancialTransaction(
-  id: id, profileId: profile, title: id, amountMinor: amount,
+  id: id, profileId: profile, notes: id, amountMinor: amount,
   type: type, categoryId: category, occurredAt: date ?? DateTime.utc(2026, 10, 15),
 );
 

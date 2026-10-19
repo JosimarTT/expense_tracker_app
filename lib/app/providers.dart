@@ -29,6 +29,10 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
   (ref) => LocalProfileRepository(ref.watch(databaseProvider)),
 );
 
+final categoryRepositoryProvider = Provider<CategoryRepository>(
+  (ref) => LocalProfileRepository(ref.watch(databaseProvider)),
+);
+
 final budgetRepositoryProvider = Provider<BudgetRepository>(
   (ref) => LocalBudgetRepository(ref.watch(databaseProvider)),
 );

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:expense_tracker_app/core/database/app_database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,32 +64,73 @@ void main() {
     await expectLater(link('a', 'private'), constraintError('FOREIGN KEY'));
   });
 
-  test('A category belongs to one bucket per budget, independently per profile', () async {
-    await addBucket('a', 'needs', 5000);
-    await addBucket('a', 'wants', 5000);
-    await addBucket('b', 'needs', 10000);
-    await link('a', 'needs');
-    await link('b', 'needs');
-    await expectLater(link('a', 'wants'), constraintError('UNIQUE'));
-  });
+  test(
+    'A category belongs to one bucket per budget, independently per profile',
+    () async {
+      await addBucket('a', 'needs', 5000);
+      await addBucket('a', 'wants', 5000);
+      await addBucket('b', 'needs', 10000);
+      await link('a', 'needs');
+      await link('b', 'needs');
+      await expectLater(link('a', 'wants'), constraintError('UNIQUE'));
+    },
+  );
 
-  test('Rejects invalid percentages and sync flags at the SQL boundary', () async {
-    await expectLater(addBucket('a', 'bad', 10001), constraintError('CHECK'));
-    await expectLater(
-      database.customStatement('UPDATE profiles SET is_synced = 2'),
-      constraintError('CHECK'),
-    );
-  });
+  test(
+    'Rejects invalid percentages and sync flags at the SQL boundary',
+    () async {
+      await expectLater(addBucket('a', 'bad', 10001), constraintError('CHECK'));
+      await expectLater(
+        database.customStatement('UPDATE profiles SET is_synced = 2'),
+        constraintError('CHECK'),
+      );
+    },
+  );
 
   test('Rejects zero amounts even when domain validation is bypassed', () async {
     await expectLater(
       database.customStatement(
         'INSERT INTO transactions '
-        '(profile_id, transaction_id, title, amount_minor, type, category_id, '
+        '(profile_id, transaction_id, notes, amount_minor, type, category_id, '
         'occurred_at, created_at, updated_at) '
-        "VALUES ('a', 'tx', 'Lunch', 0, 'expense', 'food', 0, 0, 0)",
+        "VALUES ('a', 'tx', '', 0, 'expense', 'food', 0, 0, 0)",
       ),
       constraintError('CHECK'),
     );
+  });
+
+  test('Destructively recreates prior schema data for this pre-release schema change', () async {
+    await database.close();
+    final directory = await Directory.systemTemp.createTemp(
+      'expense_schema_reset_',
+    );
+    final file = File(
+      '${directory.path}${Platform.pathSeparator}expenses.sqlite',
+    );
+    var prior = AppDatabase.forTesting(NativeDatabase(file));
+    try {
+      await prior
+          .into(prior.profiles)
+          .insert(
+            ProfilesCompanion.insert(
+              profileId: 'old',
+              name: 'Old profile',
+              currencyCode: 'USD',
+              currencyScale: 2,
+              createdAt: 0,
+              updatedAt: 0,
+            ),
+          );
+      await prior.customStatement('PRAGMA user_version = 1');
+      await prior.close();
+      prior = AppDatabase.forTesting(NativeDatabase(file));
+      expect(await prior.select(prior.profiles).get(), isEmpty);
+      expect(await prior.select(prior.categories).get(), isEmpty);
+      expect(await prior.select(prior.transactions).get(), isEmpty);
+      expect(await prior.select(prior.budgets).get(), isEmpty);
+    } finally {
+      await prior.close();
+      await directory.delete(recursive: true);
+    }
   });
 }

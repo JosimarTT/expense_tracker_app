@@ -28,16 +28,29 @@ class BudgetDialog extends ConsumerStatefulWidget {
 class _BudgetDialogState extends ConsumerState<BudgetDialog> {
   static const _ids = ['needs', 'wants', 'savings'];
   static const _names = ['Needs', 'Wants', 'Savings'];
-  late final List<TextEditingController> _percentages = List.generate(3, (index) {
-    final existing = widget.existing?.buckets.where((bucket) => bucket.id == _ids[index]).firstOrNull;
+  late final List<TextEditingController> _percentages = List.generate(3, (
+    index,
+  ) {
+    final existing = widget.existing?.buckets
+        .where((bucket) => bucket.id == _ids[index])
+        .firstOrNull;
     final bps = existing?.allocationBps ?? [5000, 3000, 2000][index];
-    return TextEditingController(text: '${bps ~/ 100}.${(bps % 100).toString().padLeft(2, '0')}');
+    return TextEditingController(
+      text: '${bps ~/ 100}.${(bps % 100).toString().padLeft(2, '0')}',
+    );
   });
   late final Map<String, String> _assignments = {
-    for (final category in widget.categories.where((category) => category.type == TransactionType.expense))
+    for (final category in widget.categories.where(
+      (category) =>
+          category.type == TransactionType.expense && !category.isArchived,
+    ))
       category.id: widget.existing == null
-          ? ({'housing', 'groceries', 'transport'}.contains(category.id) ? 'needs' : 'wants')
-          : (widget.existing!.buckets.where((bucket) => bucket.categoryIds.contains(category.id)).firstOrNull?.id ?? 'unassigned'),
+          ? (category.defaultBudgetBucket ?? 'unassigned')
+          : (widget.existing!.buckets
+                    .where((bucket) => bucket.categoryIds.contains(category.id))
+                    .firstOrNull
+                    ?.id ??
+                'unassigned'),
   };
   bool _saving = false;
   String? _error;
@@ -51,7 +64,10 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
   }
 
   Future<void> _save() async {
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final rule = BudgetRule(
         id: widget.existing?.id ?? ref.read(idGeneratorProvider).generate(),
@@ -63,7 +79,12 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
           for (var index = 0; index < 3; index++)
             BudgetBucket(
               id: _ids[index],
-              name: widget.existing?.buckets.where((bucket) => bucket.id == _ids[index]).firstOrNull?.name ?? _names[index],
+              name:
+                  widget.existing?.buckets
+                      .where((bucket) => bucket.id == _ids[index])
+                      .firstOrNull
+                      ?.name ??
+                  _names[index],
               allocationBps: parseScaledDecimal(_percentages[index].text, 2),
               categoryIds: [
                 for (final entry in _assignments.entries)
@@ -75,7 +96,12 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
       await ref.read(budgetRepositoryProvider).save(rule);
       if (mounted) Navigator.pop(context);
     } on Object catch (error) {
-      if (mounted) setState(() { _saving = false; _error = 'Could not save budget: $error'; });
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not save budget: $error';
+        });
+      }
     }
   }
 
@@ -85,35 +111,62 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
     content: SizedBox(
       width: 400,
       child: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Percentages must total 100%. Savings is a target, not recorded spending.'),
-          for (var index = 0; index < 3; index++)
-            TextField(
-              controller: _percentages[index],
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: '${_names[index]} (%)'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Percentages must total 100%. Savings is a target, not recorded spending.',
             ),
-          const SizedBox(height: 16),
-          const Text('Expense category mapping'),
-          for (final category in widget.categories.where((category) => category.type == TransactionType.expense))
-            DropdownButtonFormField<String>(
-              initialValue: _assignments[category.id],
-              decoration: InputDecoration(labelText: category.name),
-              items: const [
-                DropdownMenuItem(value: 'needs', child: Text('Needs')),
-                DropdownMenuItem(value: 'wants', child: Text('Wants')),
-                DropdownMenuItem(value: 'unassigned', child: Text('Unassigned')),
-              ],
-              onChanged: _saving ? null : (value) => setState(() => _assignments[category.id] = value!),
-            ),
-          if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-        ]),
+            for (var index = 0; index < 3; index++)
+              TextField(
+                controller: _percentages[index],
+                enabled: !_saving,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(labelText: '${_names[index]} (%)'),
+              ),
+            const SizedBox(height: 16),
+            const Text('Expense category mapping'),
+            for (final category in widget.categories.where(
+              (category) =>
+                  category.type == TransactionType.expense &&
+                  !category.isArchived,
+            ))
+              DropdownButtonFormField<String>(
+                initialValue: _assignments[category.id],
+                decoration: InputDecoration(labelText: category.name),
+                items: const [
+                  DropdownMenuItem(value: 'needs', child: Text('Needs')),
+                  DropdownMenuItem(value: 'wants', child: Text('Wants')),
+                  DropdownMenuItem(
+                    value: 'unassigned',
+                    child: Text('Unassigned'),
+                  ),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) =>
+                          setState(() => _assignments[category.id] = value!),
+              ),
+            if (_error != null)
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+          ],
+        ),
       ),
     ),
     actions: [
-      TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving...' : 'Save budget')),
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'Saving...' : 'Save budget'),
+      ),
     ],
   );
 }

@@ -30,7 +30,7 @@ class MockCloudSyncService implements SyncRepository {
     transaction: FinancialTransaction(
       id: row.transactionId,
       profileId: row.profileId,
-      title: row.title,
+      notes: row.notes,
       amountMinor: row.amountMinor,
       type: TransactionType.values.byName(row.type),
       categoryId: row.categoryId,

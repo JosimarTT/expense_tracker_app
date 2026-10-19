@@ -76,7 +76,7 @@ void main() {
           FinancialTransaction(
             id: 'transaction',
             profileId: 'profile',
-            title: 'Lunch',
+            notes: 'Lunch',
             amountMinor: 1250,
             type: TransactionType.expense,
             categoryId: 'groceries',
@@ -187,16 +187,58 @@ void main() {
       () => db.select(db.profiles).getSingle(),
     );
     expect(isUuidV7(profile!.profileId), isTrue);
+    await tester.tap(find.byKey(const Key('manage-categories')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add category'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Category name'),
+      'Streaming',
+    );
+    final budgetField = find.byKey(const Key('category-budget-bucket'));
+    await tester.ensureVisible(budgetField);
+    await tester.tap(
+      find.descendant(
+        of: budgetField,
+        matching: find.byType(DropdownButton<String>),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wants').last);
+    await tester.pumpAndSettle();
+    final iconOption = find.byKey(
+      const ValueKey('category-icon-subscriptions'),
+    );
+    await tester.ensureVisible(iconOption);
+    await tester.tap(iconOption);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save category'));
+    await settleDatabase(tester);
+    expect(find.text('Manage categories'), findsWidgets);
+    final streaming = await tester.runAsync(
+      () => (db.select(
+        db.categories,
+      )..where((row) => row.name.equals('Streaming'))).getSingle(),
+    );
+    expect(streaming!.type, 'expense');
+    expect(streaming.defaultBudgetBucket, 'wants');
+    expect(streaming.iconKey, 'subscriptions');
+    expect(streaming.colorArgb, 0xFF455A64);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Add transaction'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Lunch');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Notes (optional)'),
+      'Lunch with a friend',
+    );
     await tester.enterText(
       find.widgetWithText(TextField, 'Amount (USD)'),
       '12.50',
     );
     await tester.tap(find.text('Save'));
     await settleDatabase(tester);
-    expect(find.text('Lunch'), findsOneWidget);
+    expect(find.text('Lunch with a friend'), findsOneWidget);
     expect(find.text('Expenses: USD 12.50'), findsOneWidget);
     final transaction = await tester.runAsync(
       () => db.select(db.transactions).getSingle(),
@@ -214,7 +256,10 @@ void main() {
     await tester.ensureVisible(find.text('Add transaction'));
     await tester.tap(find.text('Add transaction'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Salary');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Notes (optional)'),
+      'Salary',
+    );
     await tester.enterText(
       find.widgetWithText(TextField, 'Amount (USD)'),
       '1000',
@@ -229,12 +274,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Income: USD 1,000.00'), findsOneWidget);
     expect(find.text('Savings target: USD 200.00'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
     expect(find.text('USD 12.50 of USD 200.00'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsNothing);
     expect(
       await tester.runAsync(() => db.select(db.budgets).get()),
       hasLength(1),
     );
+    final streamingAllocation = await tester.runAsync(
+      () =>
+          (db.select(db.budgetCategoryAllocations)
+                ..where((row) => row.categoryId.equals(streaming.categoryId)))
+              .getSingle(),
+    );
+    expect(streamingAllocation!.bucketId, 'wants');
     final budget = await tester.runAsync(
       () => db.select(db.budgets).getSingle(),
     );
@@ -263,7 +317,7 @@ void main() {
             FinancialTransaction(
               id: 'same-id',
               profileId: id,
-              title: '$id purchase',
+              notes: '$id purchase',
               amountMinor: id == 'Personal' ? 100 : 200,
               type: TransactionType.expense,
               categoryId: 'groceries',

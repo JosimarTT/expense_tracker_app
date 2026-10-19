@@ -17,7 +17,7 @@ FinancialTransaction transaction({
 }) => FinancialTransaction(
   id: id,
   profileId: profileId,
-  title: 'Lunch',
+  notes: 'Lunch',
   amountMinor: amountMinor,
   type: type,
   categoryId: categoryId,
@@ -66,6 +66,7 @@ void main() {
     await repository.save(original);
     final saved = (await repository.watchTransactions('a').first).single;
     expect(saved.amountMinor, 1250);
+    expect(saved.notes, 'Lunch');
     expect(saved.occurredAt, original.occurredAt);
     expect(saved.occurredAt.isUtc, isTrue);
     final row = await database.select(database.transactions).getSingle();
@@ -96,6 +97,24 @@ void main() {
     final saved = (await repository.watchTransactions('a').first).single;
     expect(saved.type, TransactionType.income);
     expect(saved.amountMinor, 500000);
+  });
+
+  test('Accepts transactions without notes', () async {
+    final entry = transaction();
+    await repository.save(
+      FinancialTransaction(
+        id: entry.id,
+        profileId: entry.profileId,
+        amountMinor: entry.amountMinor,
+        type: entry.type,
+        categoryId: entry.categoryId,
+        occurredAt: entry.occurredAt,
+      ),
+    );
+    expect(
+      (await repository.watchTransactions('a').first).single.notes,
+      isEmpty,
+    );
   });
 
   test(
