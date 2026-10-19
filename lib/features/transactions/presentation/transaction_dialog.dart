@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/providers.dart';
+import '../../../core/money/amount_input_formatter.dart';
 import '../../../core/money/decimal_input.dart';
 import '../../profiles/domain/profile.dart';
 import '../domain/entities/financial_transaction.dart';
@@ -136,6 +137,9 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
         children: [
           TextField(
             controller: _amount,
+            inputFormatters: [
+              AmountInputFormatter(widget.profile.currencyScale),
+            ],
             enabled: !_saving,
             keyboardType: TextInputType.numberWithOptions(
               decimal: widget.profile.currencyScale > 0,

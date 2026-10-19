@@ -5,25 +5,7 @@ import '../../../app/providers.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../domain/category_options.dart';
 import '../domain/profile.dart';
-
-const categoryIcons = <String, IconData>{
-  'category': Icons.category,
-  'payments': Icons.payments,
-  'home': Icons.home,
-  'grocery': Icons.local_grocery_store,
-  'directions_car': Icons.directions_car,
-  'restaurant': Icons.restaurant,
-  'movie': Icons.movie,
-  'health_and_safety': Icons.health_and_safety,
-  'school': Icons.school,
-  'shopping_bag': Icons.shopping_bag,
-  'pets': Icons.pets,
-  'flight': Icons.flight,
-  'bolt': Icons.bolt,
-  'subscriptions': Icons.subscriptions,
-  'fitness_center': Icons.fitness_center,
-  'work': Icons.work,
-};
+import 'category_avatar.dart';
 
 class CategoryEditorDialog extends ConsumerStatefulWidget {
   const CategoryEditorDialog({
@@ -174,7 +156,11 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
                           ? Theme.of(context).colorScheme.secondaryContainer
                           : null,
                     ),
-                    icon: Icon(entry.value),
+                    icon: CategoryAvatar(
+                      iconKey: entry.key,
+                      colorArgb: _color,
+                      radius: 16,
+                    ),
                   ),
               ],
             ),
@@ -207,7 +193,7 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(categoryIcons[_icon], color: Color(_color)),
+                CategoryAvatar(iconKey: _icon, colorArgb: _color),
                 const SizedBox(width: 8),
                 Text(_name.text.isEmpty ? 'Category preview' : _name.text),
               ],

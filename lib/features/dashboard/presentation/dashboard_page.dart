@@ -10,7 +10,7 @@ import '../../budgets/presentation/budget_dialog.dart';
 import '../../profiles/domain/profile.dart';
 import '../../profiles/presentation/delete_profile_dialog.dart';
 import '../../profiles/presentation/category_manager_dialog.dart';
-import '../../profiles/presentation/category_editor_dialog.dart';
+import '../../profiles/presentation/category_avatar.dart';
 import '../../profiles/presentation/profile_dialog.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
@@ -342,9 +342,8 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           contentPadding: EdgeInsets.zero,
           title: const Text('Automatically save unused money'),
           subtitle: const Text(
-            'Starting this month, move positive income minus expenses and savings into '
-            'Unused money after month-end, on app launch/resume. Past entries recalculate when transactions change. '
-            'Turning this off stops new sweeps; existing sweeps still recalculate.',
+            'Starting this month, record any money left over as savings when you next open the app after month-end. '
+            'No money is moved between accounts.',
           ),
           value: widget.profile.autoSavings,
           onChanged: _savingAutomatic ? null : _setAutomaticSavings,
@@ -474,26 +473,23 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         for (final transaction in monthly)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              backgroundColor: Color(
-                categories.requireValue
-                        .where(
-                          (category) => category.id == transaction.categoryId,
-                        )
-                        .firstOrNull
-                        ?.colorArgb ??
-                    0xFF455A64,
-              ),
-              child: Icon(
-                categoryIcons[categories.requireValue
-                        .where(
-                          (category) => category.id == transaction.categoryId,
-                        )
-                        .firstOrNull
-                        ?.iconKey] ??
-                    Icons.category,
-                color: Colors.white,
-              ),
+            leading: CategoryAvatar(
+              colorArgb:
+                  categories.requireValue
+                      .where(
+                        (category) => category.id == transaction.categoryId,
+                      )
+                      .firstOrNull
+                      ?.colorArgb ??
+                  0xFF455A64,
+              iconKey:
+                  categories.requireValue
+                      .where(
+                        (category) => category.id == transaction.categoryId,
+                      )
+                      .firstOrNull
+                      ?.iconKey ??
+                  'category',
             ),
             title: Text(
               transaction.notes.isEmpty

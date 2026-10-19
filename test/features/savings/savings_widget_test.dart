@@ -4,6 +4,7 @@ import 'package:expense_tracker_app/app/providers.dart';
 import 'package:expense_tracker_app/core/database/app_database.dart';
 import 'package:expense_tracker_app/features/profiles/data/local_profile_repository.dart';
 import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
+import 'package:expense_tracker_app/features/profiles/presentation/category_avatar.dart';
 import 'package:expense_tracker_app/features/savings/data/local_savings_repository.dart';
 import 'package:expense_tracker_app/features/transactions/data/repositories/local_transaction_repository.dart';
 import 'package:expense_tracker_app/features/transactions/domain/entities/financial_transaction.dart';
@@ -51,6 +52,13 @@ void main() {
       await open(tester);
       final toggle = find.byKey(const Key('automatic-unused-savings'));
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+      expect(
+        find.text(
+          'Starting this month, record any money left over as savings when you next open the app after month-end. '
+          'No money is moved between accounts.',
+        ),
+        findsOneWidget,
+      );
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await settle(tester);
@@ -120,6 +128,7 @@ void main() {
         find.ancestor(of: find.text(note), matching: find.byType(ListTile)),
       );
       expect(row.onTap, isNull);
+      expect(row.leading, isA<CategoryAvatar>());
       final deleteButton = find.byWidgetPredicate(
         (widget) => widget is IconButton && widget.tooltip == 'Delete $note',
       );

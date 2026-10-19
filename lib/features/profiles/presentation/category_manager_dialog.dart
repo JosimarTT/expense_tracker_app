@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../domain/profile.dart';
+import 'category_avatar.dart';
 import 'category_editor_dialog.dart';
 
 class CategoryManagerDialog extends ConsumerStatefulWidget {
@@ -124,6 +125,11 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider(profileId));
+    final sorted = [...?categories.asData?.value]
+      ..sort((a, b) {
+        final byName = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return byName != 0 ? byName : a.id.compareTo(b.id);
+      });
     return AlertDialog(
       title: const Text('Manage categories'),
       content: SizedBox(
@@ -133,7 +139,7 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
           AsyncData(:final value) when value.isEmpty => const Center(
             child: Text('No categories yet.'),
           ),
-          AsyncData(:final value) => Column(
+          AsyncData() => Column(
             children: [
               SwitchListTile(
                 title: const Text('Show archived'),
@@ -144,78 +150,113 @@ class _CategoryManagerDialogState extends ConsumerState<CategoryManagerDialog> {
                 child: ListView(
                   shrinkWrap: true,
                   children: [
-                    for (final category in value)
-                      if (_showArchived || !category.isArchived)
-                        ListTile(
-                          leading: Icon(
-                            categoryIcons[category.iconKey] ?? Icons.category,
-                            color: Color(category.colorArgb),
-                          ),
-                          title: Text(category.name),
-                          subtitle: Text(
-                            '${category.type.label}'
-                            '${category.type == TransactionType.expense ? ' - ${category.defaultBudgetBucket == 'needs' ? 'Needs' : 'Wants'}' : ''}'
-                            '${category.isArchived ? ' - Archived' : ''}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: 'Edit ${category.name}',
-                                onPressed:
-                                    category.isArchived || category.isSystem
-                                    ? null
-                                    : () => _edit(context, ref, category),
-                                icon: const Icon(Icons.edit_outlined),
-                              ),
-                              IconButton(
-                                tooltip:
-                                    '${category.isArchived ? 'Restore' : 'Archive'} ${category.name}',
-                                onPressed: category.isSystem
-                                    ? null
-                                    : () => _archive(category),
-                                icon: Icon(
-                                  category.isArchived
-                                      ? Icons.unarchive_outlined
-                                      : Icons.archive_outlined,
-                                ),
-                              ),
-                              if (category.isArchived)
-                                FutureBuilder<bool>(
-                                  future: ref
-                                      .read(categoryRepositoryProvider)
-                                      .canDelete(
-                                        profileId: profileId,
-                                        categoryId: category.id,
-                                      ),
-                                  builder: (context, snapshot) =>
-                                      snapshot.hasError
-                                      ? Tooltip(
-                                          message:
-                                              'Could not check category references: ${snapshot.error}',
-                                          child: const Icon(
-                                            Icons.error_outline,
-                                          ),
-                                        )
-                                      : IconButton(
-                                          tooltip: snapshot.data == true
-                                              ? 'Delete ${category.name} permanently'
-                                              : 'Active transactions, budget mappings, or schedules prevent permanent deletion',
-                                          onPressed: snapshot.data == true
-                                              ? () => _delete(
-                                                  context,
-                                                  ref,
-                                                  category,
-                                                )
-                                              : null,
-                                          icon: const Icon(
-                                            Icons.delete_forever_outlined,
-                                          ),
-                                        ),
-                                ),
-                            ],
+                    for (final archived in [
+                      false,
+                      if (_showArchived) true,
+                    ]) ...[
+                      if (archived &&
+                          sorted.any((category) => category.isArchived))
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(
+                            'Archived',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
+                      for (final type in TransactionType.values) ...[
+                        if (sorted.any(
+                          (category) =>
+                              category.type == type &&
+                              category.isArchived == archived,
+                        ))
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Text(
+                              type.label,
+                              key: ValueKey(
+                                'category-group-${archived ? 'archived' : 'active'}-${type.name}',
+                              ),
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ),
+                        for (final category in sorted.where(
+                          (category) =>
+                              category.type == type &&
+                              category.isArchived == archived,
+                        ))
+                          ListTile(
+                            key: ValueKey('managed-category-${category.id}'),
+                            leading: CategoryAvatar(
+                              iconKey: category.iconKey,
+                              colorArgb: category.colorArgb,
+                            ),
+                            title: Text(category.name),
+                            subtitle: Text(
+                              '${category.type.label}'
+                              '${category.type == TransactionType.expense ? ' - ${category.defaultBudgetBucket == 'needs' ? 'Needs' : 'Wants'}' : ''}'
+                              '${category.isArchived ? ' - Archived' : ''}',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Edit ${category.name}',
+                                  onPressed:
+                                      category.isArchived || category.isSystem
+                                      ? null
+                                      : () => _edit(context, ref, category),
+                                  icon: const Icon(Icons.edit_outlined),
+                                ),
+                                IconButton(
+                                  tooltip:
+                                      '${category.isArchived ? 'Restore' : 'Archive'} ${category.name}',
+                                  onPressed: category.isSystem
+                                      ? null
+                                      : () => _archive(category),
+                                  icon: Icon(
+                                    category.isArchived
+                                        ? Icons.unarchive_outlined
+                                        : Icons.archive_outlined,
+                                  ),
+                                ),
+                                if (category.isArchived)
+                                  FutureBuilder<bool>(
+                                    future: ref
+                                        .read(categoryRepositoryProvider)
+                                        .canDelete(
+                                          profileId: profileId,
+                                          categoryId: category.id,
+                                        ),
+                                    builder: (context, snapshot) =>
+                                        snapshot.hasError
+                                        ? Tooltip(
+                                            message:
+                                                'Could not check category references: ${snapshot.error}',
+                                            child: const Icon(
+                                              Icons.error_outline,
+                                            ),
+                                          )
+                                        : IconButton(
+                                            tooltip: snapshot.data == true
+                                                ? 'Delete ${category.name} permanently'
+                                                : 'Active transactions, budget mappings, or schedules prevent permanent deletion',
+                                            onPressed: snapshot.data == true
+                                                ? () => _delete(
+                                                    context,
+                                                    ref,
+                                                    category,
+                                                  )
+                                                : null,
+                                            icon: const Icon(
+                                              Icons.delete_forever_outlined,
+                                            ),
+                                          ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ],
                   ],
                 ),
               ),

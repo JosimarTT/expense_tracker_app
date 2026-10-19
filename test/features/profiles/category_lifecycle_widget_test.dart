@@ -8,6 +8,7 @@ import 'package:expense_tracker_app/features/budgets/presentation/budget_dialog.
 import 'package:expense_tracker_app/features/profiles/data/local_profile_repository.dart';
 import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
 import 'package:expense_tracker_app/features/profiles/presentation/category_manager_dialog.dart';
+import 'package:expense_tracker_app/features/profiles/presentation/category_avatar.dart';
 import 'package:expense_tracker_app/features/transactions/data/repositories/local_transaction_repository.dart';
 import 'package:expense_tracker_app/features/transactions/domain/entities/financial_transaction.dart';
 import 'package:flutter/material.dart';
@@ -60,6 +61,82 @@ void main() {
   }
 
   testWidgets(
+    'Groups categories by type, sorts names and puts archived categories last',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 2600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.runAsync(() async {
+        await profiles.save(
+          'a',
+          const TransactionCategory(
+            id: 'alpha',
+            name: 'alpha income',
+            type: TransactionType.income,
+            iconKey: 'payments',
+            colorArgb: 0xFF1565C0,
+            defaultBudgetBucket: null,
+          ),
+        );
+        await profiles.setArchived(
+          profileId: 'a',
+          categoryId: 'salary',
+          archived: true,
+        );
+        await profiles.setArchived(
+          profileId: 'a',
+          categoryId: 'dining',
+          archived: true,
+        );
+      });
+      await open(tester, const CategoryManagerDialog(profileId: 'a'));
+      expect(find.text('Salary'), findsNothing);
+      expect(find.text('Dining out'), findsNothing);
+      await tester.tap(find.text('Show archived'));
+      await settle(tester);
+      final rows = tester
+          .widgetList<ListTile>(
+            find.ancestor(
+              of: find.byType(CategoryAvatar),
+              matching: find.byType(ListTile),
+            ),
+          )
+          .toList();
+      expect(rows.map((row) => (row.title! as Text).data).toList(), [
+        'alpha income',
+        'Other income',
+        'Entertainment',
+        'Groceries',
+        'Housing',
+        'Other expense',
+        'Transport',
+        'Emergency fund',
+        'Investments',
+        'Retirement',
+        'Unused money',
+        'Salary',
+        'Dining out',
+      ]);
+      expect(find.text('Archived'), findsOneWidget);
+      for (final group in [
+        'active-income',
+        'active-expense',
+        'active-savings',
+        'archived-income',
+        'archived-expense',
+      ]) {
+        expect(find.byKey(ValueKey('category-group-$group')), findsOneWidget);
+      }
+      for (final row in rows) {
+        expect(row.leading, isA<CategoryAvatar>());
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
     'Archives, restores and deletes categories after their transactions are deleted',
     (tester) async {
       await tester.runAsync(() async {
@@ -84,14 +161,23 @@ void main() {
       expect(find.text('Dining out'), findsNothing);
       await tester.tap(find.text('Show archived'));
       await settle(tester);
+      await tester.scrollUntilVisible(find.text('Dining out'), 200);
       expect(find.text('Dining out'), findsOneWidget);
       await tester.tap(find.byTooltip('Restore Dining out'));
       await settle(tester);
+      await tester.scrollUntilVisible(
+        find.byTooltip('Archive Dining out'),
+        -200,
+      );
       expect(find.byTooltip('Archive Dining out'), findsOneWidget);
       await tester.tap(find.byTooltip('Archive Dining out'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Archive'));
       await settle(tester);
+      await tester.scrollUntilVisible(
+        find.byTooltip('Delete Dining out permanently'),
+        200,
+      );
       await tester.tap(find.byTooltip('Delete Dining out permanently'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete permanently'));
@@ -162,6 +248,7 @@ void main() {
     final blockedDelete = find.byTooltip(
       'Active transactions, budget mappings, or schedules prevent permanent deletion',
     );
+    await tester.scrollUntilVisible(blockedDelete, 200);
     expect(blockedDelete, findsOneWidget);
     expect(
       tester
