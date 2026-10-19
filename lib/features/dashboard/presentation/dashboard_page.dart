@@ -328,7 +328,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
               label: const Text('Manage categories'),
             ),
             FilledButton.icon(
-              onPressed: categories.requireValue.isEmpty
+              onPressed:
+                  !categories.requireValue.any(
+                    (category) => !category.isArchived,
+                  )
                   ? null
                   : () => showDialog<void>(
                       context: context,

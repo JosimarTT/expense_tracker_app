@@ -42,7 +42,12 @@ class _BudgetDialogState extends ConsumerState<BudgetDialog> {
   late final Map<String, String> _assignments = {
     for (final category in widget.categories.where(
       (category) =>
-          category.type == TransactionType.expense && !category.isArchived,
+          category.type == TransactionType.expense &&
+          (!category.isArchived ||
+              widget.existing?.buckets.any(
+                    (bucket) => bucket.categoryIds.contains(category.id),
+                  ) ==
+                  true),
     ))
       category.id: widget.existing == null
           ? (category.defaultBudgetBucket ?? 'unassigned')

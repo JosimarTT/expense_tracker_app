@@ -83,10 +83,16 @@ class LocalBudgetRepository implements BudgetRepository {
     final categories = await (_database.select(_database.categories)
       ..where((row) => row.profileId.equals(budget.profileId) & row.deletedAt.isNull()))
         .get();
+    final existingAllocations = await (_database.select(_database.budgetCategoryAllocations)
+      ..where((row) => row.profileId.equals(budget.profileId) &
+          row.budgetId.equals(budget.id) & row.deletedAt.isNull())).get();
     final expenseIds = categories.where((row) => row.type == 'expense')
         .map((row) => row.categoryId).toSet();
     for (final bucket in budget.buckets) {
-      if (!expenseIds.containsAll(bucket.categoryIds)) {
+      final retainedIds = existingAllocations
+          .where((row) => row.bucketId == bucket.id)
+          .map((row) => row.categoryId);
+      if (!{...expenseIds, ...retainedIds}.containsAll(bucket.categoryIds)) {
         throw ArgumentError('Only active expense categories from this profile may be budgeted.');
       }
     }

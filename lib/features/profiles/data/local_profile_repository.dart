@@ -251,8 +251,72 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
               defaultBudgetBucket: Value(category.defaultBudgetBucket),
               createdAt: existing?.createdAt ?? now,
               updatedAt: now,
-              deletedAt: const Value(null),
+              deletedAt: Value(existing?.deletedAt),
               localRevision: Value((existing?.localRevision ?? 0) + 1),
+              isSynced: const Value(0),
+            ),
+          );
+    });
+  }
+
+  @override
+  Future<bool> canDelete({
+    required String profileId,
+    required String categoryId,
+  }) async {
+    _requireId(profileId);
+    _requireId(categoryId);
+    final references = await _database
+        .customSelect(
+          '''SELECT EXISTS(
+        SELECT 1 FROM transactions WHERE profile_id = ? AND category_id = ? AND deleted_at IS NULL
+        UNION ALL
+        SELECT 1 FROM budget_category_allocations WHERE profile_id = ? AND category_id = ? AND deleted_at IS NULL
+      ) AS referenced''',
+          variables: [
+            Variable(profileId),
+            Variable(categoryId),
+            Variable(profileId),
+            Variable(categoryId),
+          ],
+          readsFrom: {
+            _database.transactions,
+            _database.budgetCategoryAllocations,
+          },
+        )
+        .getSingle();
+    return references.read<int>('referenced') == 0;
+  }
+
+  @override
+  Future<void> setArchived({
+    required String profileId,
+    required String categoryId,
+    required bool archived,
+  }) async {
+    _requireId(profileId);
+    _requireId(categoryId);
+    await _database.transaction(() async {
+      final category =
+          await (_database.select(_database.categories)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.categoryId.equals(categoryId),
+              ))
+              .getSingleOrNull();
+      if (category == null) throw StateError('No category found.');
+      if ((category.deletedAt != null) == archived) return;
+      final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+      await (_database.update(_database.categories)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.categoryId.equals(categoryId),
+          ))
+          .write(
+            CategoriesCompanion(
+              deletedAt: Value(archived ? now : null),
+              updatedAt: Value(now),
+              localRevision: Value(category.localRevision + 1),
               isSynced: const Value(0),
             ),
           );
@@ -271,46 +335,30 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
           await (_database.select(_database.categories)..where(
                 (row) =>
                     row.profileId.equals(profileId) &
-                    row.categoryId.equals(categoryId) &
-                    row.deletedAt.isNull(),
+                    row.categoryId.equals(categoryId),
               ))
               .getSingleOrNull();
-      if (category == null) throw StateError('No active category found.');
-      final transaction =
-          await (_database.select(_database.transactions)
-                ..where(
-                  (row) =>
-                      row.profileId.equals(profileId) &
-                      row.categoryId.equals(categoryId),
-                )
-                ..limit(1))
-              .getSingleOrNull();
-      final allocation =
-          await (_database.select(_database.budgetCategoryAllocations)
-                ..where(
-                  (row) =>
-                      row.profileId.equals(profileId) &
-                      row.categoryId.equals(categoryId),
-                )
-                ..limit(1))
-              .getSingleOrNull();
-      if (transaction != null || allocation != null) {
-        final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-        await (_database.update(_database.categories)..where(
-              (row) =>
-                  row.profileId.equals(profileId) &
-                  row.categoryId.equals(categoryId),
-            ))
-            .write(
-              CategoriesCompanion(
-                deletedAt: Value(now),
-                updatedAt: Value(now),
-                isSynced: const Value(0),
-                localRevision: Value(category.localRevision + 1),
-              ),
-            );
-        return;
+      if (category == null) throw StateError('No category found.');
+      if (!await canDelete(profileId: profileId, categoryId: categoryId)) {
+        throw StateError(
+          'This category has active transactions or budget mappings. Archive it instead.',
+        );
       }
+      // Permanent category removal also purges its deleted dependents.
+      await (_database.delete(_database.transactions)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.categoryId.equals(categoryId) &
+                row.deletedAt.isNotNull(),
+          ))
+          .go();
+      await (_database.delete(_database.budgetCategoryAllocations)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.categoryId.equals(categoryId) &
+                row.deletedAt.isNotNull(),
+          ))
+          .go();
       await (_database.delete(_database.categories)..where(
             (row) =>
                 row.profileId.equals(profileId) &

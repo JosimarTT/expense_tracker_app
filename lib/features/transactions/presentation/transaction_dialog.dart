@@ -30,7 +30,15 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
         ? ''
         : _amountText(widget.existing!.amountMinor),
   );
-  late TransactionType _type = widget.existing?.type ?? TransactionType.expense;
+  late TransactionType _type =
+      widget.existing?.type ??
+      (widget.categories.any(
+            (category) =>
+                !category.isArchived &&
+                category.type == TransactionType.expense,
+          )
+          ? TransactionType.expense
+          : TransactionType.income);
   List<TransactionCategory> get _selectableCategories => [
     for (final category in widget.categories)
       if (!category.isArchived || category.id == widget.existing?.categoryId)
@@ -148,16 +156,22 @@ class _TransactionDialogState extends ConsumerState<TransactionDialog> {
             decoration: const InputDecoration(labelText: 'Type'),
             items: [
               for (final type in TransactionType.values)
-                DropdownMenuItem(
-                  value: type,
-                  child: Text(
-                    type == TransactionType.income ? 'Income' : 'Expense',
+                if (_selectableCategories.any(
+                      (category) =>
+                          category.type == type && !category.isArchived,
+                    ) ||
+                    type == _type)
+                  DropdownMenuItem(
+                    value: type,
+                    child: Text(
+                      type == TransactionType.income ? 'Income' : 'Expense',
+                    ),
                   ),
-                ),
             ],
             onChanged: _saving
                 ? null
                 : (value) => setState(() {
+                    if (value == _type) return;
                     _type = value!;
                     _category = _selectableCategories
                         .firstWhere(

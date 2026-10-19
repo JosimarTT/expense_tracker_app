@@ -65,6 +65,245 @@ void main() {
 
   tearDown(() => db.close());
 
+  test(
+    'Permanent deletion purges deleted references only in the selected profile',
+    () async {
+      await repository.create(
+        const LocalProfile(
+          id: 'b',
+          name: 'Other',
+          currencyCode: 'USD',
+          currencyScale: 2,
+        ),
+      );
+      for (final profileId in ['a', 'b']) {
+        await repository.save(profileId, category());
+        for (final id in ['first', 'second']) {
+          await transactions.save(
+            FinancialTransaction(
+              id: id,
+              profileId: profileId,
+              amountMinor: 500,
+              type: TransactionType.expense,
+              categoryId: 'custom',
+              occurredAt: DateTime.utc(2026, 10, 10),
+            ),
+          );
+        }
+      }
+      await transactions.delete(profileId: 'a', transactionId: 'first');
+      expect(
+        await repository.canDelete(profileId: 'a', categoryId: 'custom'),
+        isFalse,
+      );
+      await expectLater(
+        repository.delete(profileId: 'a', categoryId: 'custom'),
+        throwsStateError,
+      );
+      expect(
+        await (db.select(
+          db.transactions,
+        )..where((row) => row.profileId.equals('a'))).get(),
+        hasLength(2),
+      );
+      await transactions.delete(profileId: 'a', transactionId: 'second');
+      await LocalBudgetRepository(db).save(budget());
+      expect(
+        await repository.canDelete(profileId: 'a', categoryId: 'custom'),
+        isFalse,
+      );
+      await expectLater(
+        repository.delete(profileId: 'a', categoryId: 'custom'),
+        throwsStateError,
+      );
+      await LocalBudgetRepository(db)
+          .delete(profileId: 'a', budgetId: 'budget');
+      expect(
+        await repository.canDelete(profileId: 'a', categoryId: 'custom'),
+        isTrue,
+      );
+      await repository.setArchived(
+        profileId: 'a',
+        categoryId: 'custom',
+        archived: true,
+      );
+      await repository.delete(profileId: 'a', categoryId: 'custom');
+      expect(
+        (await repository.watchCategories('a').first).where(
+          (row) => row.id == 'custom',
+        ),
+        isEmpty,
+      );
+      expect(
+        await (db.select(
+          db.transactions,
+        )..where((row) => row.profileId.equals('a'))).get(),
+        isEmpty,
+      );
+      expect(await db.select(db.budgetCategoryAllocations).get(), isEmpty);
+      expect(await transactions.watchTransactions('b').first, hasLength(2));
+      expect(
+        (await repository.watchCategories('b').first).any(
+          (row) => row.id == 'custom',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'Failed permanent deletion rolls back cleanup of deleted dependents',
+    () async {
+      await repository.save('a', category());
+      await transactions.save(
+        FinancialTransaction(
+          id: 'tx',
+          profileId: 'a',
+          amountMinor: 500,
+          type: TransactionType.expense,
+          categoryId: 'custom',
+          occurredAt: DateTime.utc(2026, 10, 10),
+        ),
+      );
+      await transactions.delete(profileId: 'a', transactionId: 'tx');
+      await db.customStatement('''
+      CREATE TRIGGER prevent_category_delete BEFORE DELETE ON categories
+      BEGIN SELECT RAISE(ABORT, 'Test failure'); END
+    ''');
+      await expectLater(
+        repository.delete(profileId: 'a', categoryId: 'custom'),
+        throwsA(isA<Exception>()),
+      );
+      expect(await db.select(db.transactions).get(), hasLength(1));
+      expect(
+        (await repository.watchCategories('a').first).any(
+          (row) => row.id == 'custom',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('Archive and restore preserve identity, mark revisions, and stay profile scoped', () async {
+    await repository.save('a', category());
+    await repository.setArchived(
+      profileId: 'a',
+      categoryId: 'custom',
+      archived: true,
+    );
+    expect(
+      await repository.canDelete(profileId: 'a', categoryId: 'custom'),
+      isTrue,
+    );
+    await repository.save('a', category(name: 'Renamed'));
+    expect(
+      (await repository.watchCategories('a').first)
+          .singleWhere((row) => row.id == 'custom')
+          .isArchived,
+      isTrue,
+    );
+    await repository.setArchived(
+      profileId: 'a',
+      categoryId: 'custom',
+      archived: false,
+    );
+    final saved = (await repository.watchCategories('a').first).singleWhere(
+      (row) => row.id == 'custom',
+    );
+    expect(saved.isArchived, isFalse);
+    expect(saved.name, 'Renamed');
+    final row = await (db.select(
+      db.categories,
+    )..where((row) => row.categoryId.equals('custom'))).getSingle();
+    expect(row.localRevision, 4);
+    expect(row.isSynced, 0);
+    await expectLater(
+      repository.setArchived(
+        profileId: 'b',
+        categoryId: 'custom',
+        archived: true,
+      ),
+      throwsStateError,
+    );
+    await repository.setArchived(
+      profileId: 'a',
+      categoryId: 'custom',
+      archived: true,
+    );
+    await repository.delete(profileId: 'a', categoryId: 'custom');
+    expect(
+      (await repository.watchCategories('a').first).where(
+        (row) => row.id == 'custom',
+      ),
+      isEmpty,
+    );
+  });
+
+  test(
+    'Archived budget mappings can be retained but not added to new budgets',
+    () async {
+      await repository.save('a', category());
+      final budgets = LocalBudgetRepository(db);
+      await budgets.save(budget());
+      await repository.setArchived(
+        profileId: 'a',
+        categoryId: 'custom',
+        archived: true,
+      );
+      expect(
+        await repository.canDelete(profileId: 'a', categoryId: 'custom'),
+        isFalse,
+      );
+      await budgets.save(budget());
+      expect(
+        (await budgets.watchBudgets('a').first).single.buckets
+            .singleWhere((row) => row.id == 'needs')
+            .categoryIds,
+        contains('custom'),
+      );
+      await expectLater(
+        budgets.save(budget(id: 'next', month: 11)),
+        throwsArgumentError,
+      );
+      await expectLater(
+        repository.delete(profileId: 'a', categoryId: 'custom'),
+        throwsStateError,
+      );
+    },
+  );
+
+  test('Existing transactions retain archived categories when edited, new entries cannot use them', () async {
+    await repository.save('a', category());
+    FinancialTransaction transaction(String id, int amount) =>
+        FinancialTransaction(
+          id: id,
+          profileId: 'a',
+          amountMinor: amount,
+          type: TransactionType.expense,
+          categoryId: 'custom',
+          occurredAt: DateTime.utc(2026, 10, 10),
+        );
+    await transactions.save(transaction('existing', 500));
+    await repository.setArchived(
+      profileId: 'a',
+      categoryId: 'custom',
+      archived: true,
+    );
+    await transactions.save(transaction('existing', 600));
+    expect(
+      (await transactions.watchTransactions('a').first).single.amountMinor,
+      600,
+    );
+    await expectLater(
+      transactions.save(transaction('new', 500)),
+      throwsStateError,
+    );
+    expect(
+      await repository.canDelete(profileId: 'a', categoryId: 'custom'),
+      isFalse,
+    );
+  });
+
   for (final referenceType in ['transactions', 'budgets']) {
     test(
       'Edits and archives a category referenced by multiple $referenceType across months',
@@ -116,7 +355,15 @@ void main() {
           ),
         );
 
-        await repository.delete(profileId: 'a', categoryId: 'custom');
+        await expectLater(
+          repository.delete(profileId: 'a', categoryId: 'custom'),
+          throwsStateError,
+        );
+        await repository.setArchived(
+          profileId: 'a',
+          categoryId: 'custom',
+          archived: true,
+        );
         final archived = (await repository.watchCategories('a').first)
             .singleWhere((item) => item.id == 'custom');
         expect(archived.name, 'Cafe');
@@ -298,7 +545,15 @@ void main() {
           occurredAt: DateTime.utc(2026, 10, 10),
         ),
       );
-      await repository.delete(profileId: 'a', categoryId: 'custom');
+      await expectLater(
+        repository.delete(profileId: 'a', categoryId: 'custom'),
+        throwsStateError,
+      );
+      await repository.setArchived(
+        profileId: 'a',
+        categoryId: 'custom',
+        archived: true,
+      );
       final archived = (await repository.watchCategories('a').first)
           .singleWhere((item) => item.id == 'custom');
       expect(archived.isArchived, isTrue);

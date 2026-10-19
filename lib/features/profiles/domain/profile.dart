@@ -36,7 +36,16 @@ class TransactionCategory {
 
 abstract interface class CategoryRepository {
   Future<void> save(String profileId, TransactionCategory category);
+  Future<void> setArchived({
+    required String profileId,
+    required String categoryId,
+    required bool archived,
+  });
   Future<void> delete({required String profileId, required String categoryId});
+  Future<bool> canDelete({
+    required String profileId,
+    required String categoryId,
+  });
 }
 
 abstract interface class ProfileRepository {

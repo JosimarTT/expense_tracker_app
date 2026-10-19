@@ -57,9 +57,6 @@ class LocalTransactionRepository implements TransactionRepository {
       if (profile == null) {
         throw StateError('The selected profile is no longer active.');
       }
-      if (category?.deletedAt != null) {
-        throw StateError('The selected category is no longer active.');
-      }
       final existing =
           await (_database.select(_database.transactions)..where(
                 (row) =>
@@ -67,6 +64,10 @@ class LocalTransactionRepository implements TransactionRepository {
                     row.transactionId.equals(transaction.id),
               ))
               .getSingleOrNull();
+      if (category?.deletedAt != null &&
+          (existing == null || existing.categoryId != transaction.categoryId)) {
+        throw StateError('The selected category is no longer active.');
+      }
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;
       await _database
           .into(_database.transactions)
