@@ -78,6 +78,19 @@ Emoji artwork follows the platform's bundled emoji font and needs no network.
 Displaying saved avatars in the dashboard profile selector is a later integration
 step, separate from this creation form.
 
+### Choosing currency
+
+The currency picker uses local symbol badges, explicit ISO codes and names,
+and a selected-row highlight/check. Search matches names, codes, and country
+aliases; clear-search restores all supported currencies. The same popular
+USD/EUR/JPY/GBP/BRL chips are shared with the profile form and return a selection
+immediately. Quick picks are hidden while searching to avoid unrelated results.
+Codes remain the primary identifier because symbols can be shared by multiple
+currencies; country flags are not used to represent multi-country currencies.
+The complete picker scrolls with the keyboard and larger text, including its
+cancel action. Cancellation does not change the profile's currency. Supported
+currencies, decimal precision, and the version-1 database schema are unchanged.
+
 ## Technology decisions
 
 | Concern | Choice | Rationale |

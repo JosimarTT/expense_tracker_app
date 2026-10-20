@@ -244,6 +244,7 @@ void main() {
     await tapVisible(tester, find.byKey(const Key('profile-currency')));
     await tester.pumpAndSettle();
     expect(find.text('Choose currency'), findsOneWidget);
+    await tester.ensureVisible(find.text('Cancel').last);
     await tester.tap(find.text('Cancel').last);
     await tester.pumpAndSettle();
     expect(find.text('EUR - Euro'), findsOneWidget);

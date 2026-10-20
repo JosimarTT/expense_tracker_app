@@ -6,6 +6,7 @@ import '../../../core/money/currency.dart';
 import '../../../core/money/money_format.dart';
 import '../domain/profile.dart';
 import 'currency_picker_dialog.dart';
+import 'currency_widgets.dart';
 import 'profile_avatar.dart';
 
 Future<String?> showProfileDialog(BuildContext context) {
@@ -236,6 +237,7 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
                   key: const Key('profile-currency'),
+                  leading: CurrencyBadge(code: _currency),
                   title: Text('$_currency - ${currency.name}'),
                   subtitle: Text(
                     'Example: ${formatMoney(1250, _currency, currency.scale, locale: locale)}',
@@ -245,27 +247,11 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                 ),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  for (final code in ['USD', 'EUR', 'JPY', 'GBP', 'BRL'])
-                    ChoiceChip(
-                      key: ValueKey('quick-currency-$code'),
-                      label: Text(code),
-                      selected: code == _currency,
-                      selectedColor: colors.primaryContainer,
-                      checkmarkColor: colors.onPrimaryContainer,
-                      labelStyle: TextStyle(
-                        color: code == _currency
-                            ? colors.onPrimaryContainer
-                            : colors.onSurface,
-                      ),
-                      onSelected: _saving
-                          ? null
-                          : (_) => setState(() => _currency = code),
-                    ),
-                ],
+              PopularCurrencyChips(
+                selectedCode: _currency,
+                onSelected: _saving
+                    ? null
+                    : (code) => setState(() => _currency = code),
               ),
               const SizedBox(height: 16),
               Card(

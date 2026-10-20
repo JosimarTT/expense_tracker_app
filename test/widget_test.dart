@@ -56,17 +56,13 @@ void main() {
       await tester.enterText(search, query);
       await tester.pumpAndSettle();
       final codeLabel = find.descendant(
-        of: find.byType(ListTile),
+        of: find.byKey(ValueKey('currency-$code')),
         matching: find.text(code),
       );
       expect(codeLabel, findsOneWidget);
       expect(find.text(name), findsOneWidget);
       expect(find.textContaining('decimal places'), findsNothing);
-      final currencyRow = tester.widget<ListTile>(
-        find.ancestor(of: codeLabel, matching: find.byType(ListTile)),
-      );
-      expect((currencyRow.title! as Text).data, code);
-      expect((currencyRow.subtitle! as Text).data, name);
+      await tester.ensureVisible(codeLabel);
       await tester.tap(codeLabel);
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Create'));
