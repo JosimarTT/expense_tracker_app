@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Create Local Profile - Expense Tracker</title>
+<!-- Tailwind CSS CDN v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans & Quicksand -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;family=Quicksand:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<!-- FontAwesome Icons for clean iOS UI glyphs -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              cream: '#FAF7F2',
+              card: '#FFFFFF',
+              input: '#FFF9F2',
+              orange: '#FF9F43',
+              'orange-hover': '#F08B2D',
+              'orange-light': '#FFF0E0',
+              peach: '#FFE7D9',
+              green: '#2ECC71',
+              'green-light': '#E8F8F0',
+              text: '#37322E',
+              muted: '#9E948B',
+              border: '#F0ECE4'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            display: ['Quicksand', 'sans-serif'],
+          },
+          boxShadow: {
+            'soft': '0 8px 28px -6px rgba(133, 90, 50, 0.08)',
+            'sheet': '0 -14px 40px -4px rgba(60, 40, 20, 0.16)',
+            'pill': '0 4px 14px 0 rgba(255, 159, 67, 0.35)',
+            'card-warm': '0 6px 20px -4px rgba(220, 190, 160, 0.25)'
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="base-styling">
+    body {
+      background-color: #ECE5DC;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Hide scrollbars while preserving touch scroll */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-0 sm:p-4 text-brand-text select-none">
+<!-- BEGIN: MobileDeviceFrame -->
+<!-- Container replicating standard iOS screen footprint -->
+<div class="relative w-full max-w-[412px] h-[890px] bg-brand-cream overflow-hidden sm:rounded-[48px] shadow-2xl flex flex-col justify-between border-[8px] border-stone-800" data-purpose="ios-frame">
+<!-- BEGIN: iOSStatusBar -->
+<div class="w-full pt-3 px-7 flex justify-between items-center z-20 text-[13px] font-semibold text-brand-text" data-purpose="status-bar">
+<span class="tracking-tight">9:41</span>
+<!-- Dynamic Island / Top Speaker Notch -->
+<div class="w-24 h-4 bg-black rounded-full mx-auto -mt-1 hidden sm:block"></div>
+<div class="flex items-center space-x-2">
+<i class="fa-solid fa-signal text-xs"></i>
+<i class="fa-solid fa-wifi text-xs"></i>
+<i class="fa-solid fa-battery-full text-sm text-green-500"></i>
+</div>
+</div>
+<!-- END: iOSStatusBar -->
+<!-- BEGIN: AppHeader -->
+<header class="px-6 pt-3 pb-2 flex items-center justify-between z-10">
+<div class="flex items-center space-x-3">
+<!-- Mascot Logo Badge -->
+<div class="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-xl shadow-sm border border-amber-200">
+          🐱
+        </div>
+<div>
+<h1 class="text-lg font-extrabold text-brand-text leading-tight tracking-tight">Expense Tracker</h1>
+<p class="text-xs text-brand-muted font-semibold">Private &amp; Local First</p>
+</div>
+</div>
+<button aria-label="Settings" class="w-9 h-9 rounded-full bg-white flex items-center justify-center text-brand-muted shadow-sm border border-brand-border active:scale-95 transition-transform">
+<i class="fa-solid fa-ellipsis text-sm"></i>
+</button>
+</header>
+<!-- END: AppHeader -->
+<!-- BEGIN: BackgroundOverviewContent -->
+<!-- Content visible in the background underneath the modal sheet -->
+<main class="px-6 flex-1 pt-2 flex flex-col space-y-4">
+<!-- Greeting and Setup Card -->
+<div class="bg-white p-5 rounded-3xl shadow-card-warm border border-brand-border space-y-2">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 border border-amber-200/60">
+<i class="fa-solid fa-sparkles text-[10px]"></i> Getting Started
+          </span>
+<span class="text-xs text-brand-muted font-bold">Step 1 of 2</span>
+</div>
+<h2 class="text-base font-bold text-brand-text">Welcome! Let’s personalize your local vault.</h2>
+<p class="text-xs text-brand-muted leading-relaxed">Your transactions, categories, and statistics never leave this phone.</p>
+<!-- Privacy Pills -->
+<div class="flex flex-wrap gap-1.5 pt-1">
+<span class="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg flex items-center gap-1">
+<i class="fa-solid fa-shield-cat text-emerald-600"></i> 100% Offline
+          </span>
+<span class="text-[11px] font-semibold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg flex items-center gap-1">
+<i class="fa-solid fa-eye-slash text-blue-600"></i> Zero Trackers
+          </span>
+</div>
+</div>
+<!-- Live Profile Badge Preview Card -->
+<div class="bg-gradient-to-br from-brand-orange-light to-white p-4 rounded-3xl border border-amber-200/80 shadow-sm flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-12 h-12 rounded-2xl bg-amber-200 flex items-center justify-center text-2xl shadow-inner border border-amber-300">
+            🐱
+          </div>
+<div>
+<div class="text-[10px] tracking-wider font-extrabold uppercase text-amber-600">Active Profile</div>
+<div class="text-sm font-extrabold text-brand-text">Josimar</div>
+<div class="text-[11px] text-brand-muted font-medium flex items-center gap-1">
+<span>Primary currency:</span>
+<span class="font-bold text-brand-text bg-white px-1.5 py-0.5 rounded border border-amber-200">JPY (¥)</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] text-brand-muted font-semibold">Total Spent</div>
+<div class="text-sm font-extrabold text-brand-text">¥0.00</div>
+</div>
+</div>
+</main>
+<!-- END: BackgroundOverviewContent -->
+<!-- BEGIN: ModalBackdrop -->
+<div class="absolute inset-0 bg-stone-900/35 backdrop-blur-[2px] z-30 transition-opacity" data-purpose="sheet-backdrop"></div>
+<!-- END: ModalBackdrop -->
+<!-- BEGIN: ProfileCreationBottomSheet -->
+<section class="relative z-40 bg-white rounded-t-[36px] shadow-sheet px-6 pt-3 pb-7 flex flex-col justify-between border-t border-amber-100 max-h-[80%]" data-purpose="create-profile-sheet">
+<!-- Drag Handle -->
+<div class="w-11 h-1.2 bg-stone-300 rounded-full mx-auto mb-3 h-1"></div>
+<!-- Sheet Header -->
+<div class="flex items-start justify-between mb-4">
+<div>
+<div class="flex items-center space-x-1.5">
+<h2 class="text-xl font-extrabold text-brand-text font-display">Create local profile</h2>
+<span class="text-base">✨</span>
+</div>
+<p class="text-xs text-brand-muted mt-0.5 font-medium">Safe, private &amp; stored only on this device.</p>
+</div>
+<button aria-label="Close dialog" class="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 hover:bg-stone-200 transition-colors">
+<i class="fa-solid fa-xmark text-sm"></i>
+</button>
+</div>
+<!-- Scrollable Form Container -->
+<div class="overflow-y-auto no-scrollbar space-y-4 pr-0.5">
+<!-- Avatar Picker Section -->
+<div>
+<label class="block text-xs font-bold text-brand-text uppercase tracking-wider mb-2">Choose Avatar</label>
+<div class="grid grid-cols-4 gap-2.5">
+<!-- Selected Cat Avatar -->
+<button aria-pressed="true" class="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-amber-50 border-2 border-brand-orange shadow-sm relative transition-all active:scale-95">
+<span class="text-2xl mb-1">🐱</span>
+<span class="text-[11px] font-bold text-brand-orange">Neko</span>
+<span class="absolute -top-1 -right-1 w-4 h-4 bg-brand-orange rounded-full flex items-center justify-center text-white text-[9px] shadow-sm">
+<i class="fa-solid fa-check"></i>
+</span>
+</button>
+<!-- Piggy Bank Avatar -->
+<button aria-pressed="false" class="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-brand-cream/80 border border-stone-200/80 hover:bg-stone-100/70 transition-all active:scale-95">
+<span class="text-2xl mb-1">🐷</span>
+<span class="text-[11px] font-bold text-stone-500">Piggy</span>
+</button>
+<!-- Bear Avatar -->
+<button aria-pressed="false" class="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-brand-cream/80 border border-stone-200/80 hover:bg-stone-100/70 transition-all active:scale-95">
+<span class="text-2xl mb-1">🐻</span>
+<span class="text-[11px] font-bold text-stone-500">Kuma</span>
+</button>
+<!-- Coffee Avatar -->
+<button aria-pressed="false" class="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-brand-cream/80 border border-stone-200/80 hover:bg-stone-100/70 transition-all active:scale-95">
+<span class="text-2xl mb-1">☕</span>
+<span class="text-[11px] font-bold text-stone-500">Boba</span>
+</button>
+</div>
+</div>
+<!-- Profile Name Input Field -->
+<div>
+<label class="block text-xs font-bold text-brand-text uppercase tracking-wider mb-1.5" for="profile-name">
+            Profile Name
+          </label>
+<div class="relative flex items-center">
+<span class="absolute left-3.5 text-brand-muted text-sm">
+<i class="fa-solid fa-user-pen"></i>
+</span>
+<input class="w-full bg-brand-input border border-brand-orange/30 rounded-2xl py-3 pl-10 pr-10 text-sm font-bold text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-orange/40 focus:border-brand-orange transition-all" id="profile-name" placeholder="e.g. My Personal Vault" type="text" value="Josimar"/>
+<span class="absolute right-3.5 text-emerald-500 text-sm">
+<i class="fa-solid fa-circle-check"></i>
+</span>
+</div>
+</div>
+<!-- Currency Selector Section -->
+<div>
+<div class="flex justify-between items-center mb-1.5">
+<label class="block text-xs font-bold text-brand-text uppercase tracking-wider">
+              Profile Currency
+            </label>
+<span class="text-[11px] font-semibold text-brand-orange cursor-pointer hover:underline flex items-center gap-1">
+<i class="fa-solid fa-magnifying-glass text-[10px]"></i> Search 150+
+            </span>
+</div>
+<!-- Active Currency Dropdown Trigger -->
+<div class="w-full bg-brand-input border border-stone-200 rounded-2xl p-3 flex items-center justify-between cursor-pointer hover:border-brand-orange/50 transition-all active:scale-[0.99]">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-sm font-bold text-red-600 shadow-xs">
+                ¥
+              </div>
+<div class="text-left">
+<div class="text-xs font-bold text-brand-text flex items-center gap-1.5">
+                  JPY <span class="text-[11px] font-medium text-brand-muted">- Japanese yen</span>
+</div>
+<div class="text-[10px] text-stone-400 font-medium">Standard format: ¥1,250</div>
+</div>
+</div>
+<div class="flex items-center text-brand-muted">
+<i class="fa-solid fa-chevron-down text-xs"></i>
+</div>
+</div>
+<!-- Quick Picker Currency Chips -->
+<div class="flex items-center gap-1.5 mt-2 overflow-x-auto no-scrollbar py-0.5">
+<!-- USD Chip -->
+<button class="px-2.5 py-1 rounded-xl bg-stone-100 text-brand-text font-bold text-xs hover:bg-stone-200 transition-colors flex items-center gap-1 shrink-0">
+<span class="text-stone-400 font-semibold">$</span> USD
+            </button>
+<!-- EUR Chip -->
+<button class="px-2.5 py-1 rounded-xl bg-stone-100 text-brand-text font-bold text-xs hover:bg-stone-200 transition-colors flex items-center gap-1 shrink-0">
+<span class="text-stone-400 font-semibold">€</span> EUR
+            </button>
+<!-- JPY Chip (Active) -->
+<button class="px-2.5 py-1 rounded-xl bg-brand-orange text-white font-bold text-xs shadow-xs flex items-center gap-1 shrink-0">
+<span>¥</span> JPY <i class="fa-solid fa-check text-[10px] ml-0.5"></i>
+</button>
+<!-- GBP Chip -->
+<button class="px-2.5 py-1 rounded-xl bg-stone-100 text-brand-text font-bold text-xs hover:bg-stone-200 transition-colors flex items-center gap-1 shrink-0">
+<span class="text-stone-400 font-semibold">£</span> GBP
+            </button>
+<!-- BRL Chip -->
+<button class="px-2.5 py-1 rounded-xl bg-stone-100 text-brand-text font-bold text-xs hover:bg-stone-200 transition-colors flex items-center gap-1 shrink-0">
+<span class="text-stone-400 font-semibold">R$</span> BRL
+            </button>
+</div>
+</div>
+<!-- Information Notice Box -->
+<div class="p-3 bg-amber-50/70 rounded-2xl border border-amber-200/70 flex items-start space-x-2.5">
+<i class="fa-solid fa-lock text-amber-600 text-xs mt-0.5"></i>
+<p class="text-[11px] text-stone-600 leading-normal">
+            Currency is locked once created to ensure accurate historical analytics. Data stays offline on this device.
+          </p>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="mt-4 pt-2 border-t border-stone-100 flex flex-col space-y-2">
+<button class="w-full h-12 bg-brand-orange hover:bg-brand-orange-hover text-white font-extrabold rounded-2xl shadow-pill flex items-center justify-center space-x-2 transition-all active:scale-[0.98]">
+<span class="text-sm font-display tracking-wide">Create Profile</span>
+<i class="fa-solid fa-sparkles text-xs text-amber-200"></i>
+</button>
+<button class="w-full py-2 text-xs font-bold text-brand-muted hover:text-brand-text transition-colors text-center">
+          Cancel &amp; Restore From Backup
+        </button>
+</div>
+</section>
+<!-- END: ProfileCreationBottomSheet -->
+<!-- BEGIN: iOSHomeIndicator -->
+<div class="w-full pb-2 flex justify-center z-50 bg-white">
+<div class="w-32 h-1 bg-stone-300 rounded-full"></div>
+</div>
+<!-- END: iOSHomeIndicator -->
+</div>
+<!-- END: MobileDeviceFrame -->
+</body></html>
