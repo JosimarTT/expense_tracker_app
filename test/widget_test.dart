@@ -4,6 +4,8 @@ import 'package:expense_tracker_app/app/providers.dart';
 import 'package:expense_tracker_app/core/database/app_database.dart';
 import 'package:expense_tracker_app/features/profiles/data/local_profile_repository.dart';
 import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
+import 'package:expense_tracker_app/features/profiles/presentation/profile_avatar.dart';
+import 'package:expense_tracker_app/features/profiles/presentation/profile_selector.dart';
 import 'package:expense_tracker_app/features/transactions/data/repositories/local_transaction_repository.dart';
 import 'package:expense_tracker_app/features/transactions/domain/entities/financial_transaction.dart';
 import 'package:flutter/material.dart';
@@ -155,6 +157,17 @@ void main() {
       await tester.tap(find.text('Create'));
       await settleDatabase(tester);
       expect(find.text('Travel (EUR)'), findsOneWidget);
+      expect(
+        tester
+            .widget<ProfileAvatarIcon>(
+              find.descendant(
+                of: find.byType(ProfileSelector),
+                matching: find.byType(ProfileAvatarIcon),
+              ),
+            )
+            .avatar,
+        ProfileAvatar.kuma,
+      );
       final profiles = await tester.runAsync(
         () => LocalProfileRepository(db).watchProfiles().first,
       );
@@ -191,6 +204,103 @@ void main() {
     );
     expect(find.text('Retry'), findsOneWidget);
   });
+
+  testWidgets(
+    'Failed creation preserves active profile and deletion selects a survivor',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await tester.runAsync(() async {
+        for (final (id, avatar) in [
+          ('Personal', ProfileAvatar.neko),
+          ('Travel', ProfileAvatar.piggy),
+        ]) {
+          await LocalProfileRepository(db).create(
+            LocalProfile(
+              id: id,
+              name: id,
+              currencyCode: 'USD',
+              currencyScale: 2,
+              avatar: avatar,
+            ),
+          );
+        }
+        await db.customStatement(
+          "CREATE TRIGGER reject_profile_insert BEFORE INSERT ON profiles "
+          "BEGIN SELECT RAISE(ABORT, 'storage unavailable'); END",
+        );
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: const ExpenseTrackerApp(),
+        ),
+      );
+      await settleDatabase(tester);
+      await tester.tap(find.text('Personal (USD)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Travel (USD)').last);
+      await settleDatabase(tester);
+      final add = tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.person_add_alt_1),
+          )
+          .onPressed!;
+      add();
+      add();
+      await tester.pumpAndSettle();
+      expect(find.text('Create local profile'), findsOneWidget);
+      await tester.enterText(find.byType(TextFormField), 'Rejected');
+      await tester.ensureVisible(find.text('Create'));
+      await tester.tap(find.text('Create'));
+      await settleDatabase(tester);
+      expect(find.textContaining('Could not create profile:'), findsOneWidget);
+      await tester.ensureVisible(find.text('Cancel'));
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Travel (USD)'), findsOneWidget);
+      expect(
+        tester
+            .widget<ProfileAvatarIcon>(
+              find.descendant(
+                of: find.byType(ProfileSelector),
+                matching: find.byType(ProfileAvatarIcon),
+              ),
+            )
+            .avatar,
+        ProfileAvatar.piggy,
+      );
+      expect(
+        await tester.runAsync(() => db.select(db.profiles).get()),
+        hasLength(2),
+      );
+      await tester.tap(find.byKey(const Key('delete-profile')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirmation'),
+        'DELETE',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm-delete-profile')));
+      await settleDatabase(tester);
+      expect(find.text('Personal (USD)'), findsOneWidget);
+      expect(find.text('Hi there, friend!'), findsNothing);
+      expect(
+        tester
+            .widget<ProfileAvatarIcon>(
+              find.descendant(
+                of: find.byType(ProfileSelector),
+                matching: find.byType(ProfileAvatarIcon),
+              ),
+            )
+            .avatar,
+        ProfileAvatar.neko,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'Profile deletion requires exact DELETE and cancellation preserves data',
@@ -450,6 +560,9 @@ void main() {
               name: id,
               currencyCode: 'USD',
               currencyScale: 2,
+              avatar: id == 'Personal'
+                  ? ProfileAvatar.neko
+                  : ProfileAvatar.boba,
             ),
           );
           await LocalTransactionRepository(db).save(
@@ -485,6 +598,17 @@ void main() {
       await tester.drag(find.byType(ListView).first, const Offset(0, 1200));
       await tester.pumpAndSettle();
       expect(find.text(r'Expenses: $2.00'), findsOneWidget);
+      expect(
+        tester
+            .widget<ProfileAvatarIcon>(
+              find.descendant(
+                of: find.byType(ProfileSelector),
+                matching: find.byType(ProfileAvatarIcon),
+              ),
+            )
+            .avatar,
+        ProfileAvatar.boba,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();

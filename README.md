@@ -75,8 +75,14 @@ Failures appear in the form and allow retry without losing the entered choices.
 Avatar keys are typed domain values and persisted locally in the version-1
 schema. New profiles default to `neko` when no avatar is specified.
 Emoji artwork follows the platform's bundled emoji font and needs no network.
-Displaying saved avatars in the dashboard profile selector is a later integration
-step, separate from this creation form.
+The dashboard selector shows each saved avatar beside the profile identity,
+including the active profile. Long names wrap in the menu and are truncated with
+a full-name tooltip in the closed selector. Creating a profile selects it only
+after a successful save; cancelling or a save failure leaves the active profile
+unchanged. Repeated add-profile actions cannot stack creation forms. Switching
+continues to scope transactions, budgets, savings, and schedules by profile.
+Deleting the active profile selects the first remaining profile; deleting the
+last returns to the welcome screen. Active selection remains session-local.
 
 ### Choosing currency
 

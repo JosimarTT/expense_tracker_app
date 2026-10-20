@@ -12,6 +12,7 @@ import '../../profiles/presentation/delete_profile_dialog.dart';
 import '../../profiles/presentation/category_manager_dialog.dart';
 import '../../profiles/presentation/category_avatar.dart';
 import '../../profiles/presentation/profile_dialog.dart';
+import '../../profiles/presentation/profile_selector.dart';
 import '../../profiles/presentation/welcome_view.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
@@ -28,10 +29,17 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   String? _selectedId;
+  bool _creatingProfile = false;
 
   Future<void> _createProfile() async {
-    final id = await showProfileDialog(context);
-    if (id != null && mounted) setState(() => _selectedId = id);
+    if (_creatingProfile) return;
+    setState(() => _creatingProfile = true);
+    try {
+      final id = await showProfileDialog(context);
+      if (id != null && mounted) setState(() => _selectedId = id);
+    } finally {
+      if (mounted) setState(() => _creatingProfile = false);
+    }
   }
 
   @override
@@ -45,7 +53,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               title: const Text('Expense Tracker'),
               actions: [
                 IconButton(
-                  onPressed: _createProfile,
+                  onPressed: _creatingProfile ? null : _createProfile,
                   tooltip: 'Create profile',
                   icon: const Icon(Icons.person_add_alt_1),
                 ),
@@ -71,22 +79,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: DropdownButtonFormField<String>(
-                    key: ValueKey(selected.id),
-                    initialValue: selected.id,
-                    decoration: const InputDecoration(
-                      labelText: 'Active profile',
-                    ),
-                    items: [
-                      for (final profile in items)
-                        DropdownMenuItem(
-                          value: profile.id,
-                          child: Text(
-                            '${profile.name} (${profile.currencyCode})',
-                          ),
-                        ),
-                    ],
-                    onChanged: (id) => setState(() => _selectedId = id),
+                  child: ProfileSelector(
+                    profiles: items,
+                    selected: selected,
+                    onSelected: (id) => setState(() => _selectedId = id),
                   ),
                 ),
                 Expanded(
