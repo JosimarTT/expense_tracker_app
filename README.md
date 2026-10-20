@@ -51,7 +51,32 @@ outlines use stronger foregrounds. Cards and dialogs use 24dp corners, sheets
 
 Nunito is bundled locally in `assets/fonts` so typography never needs a network
 request. Its SIL Open Font License is included beside the font. This foundation
-does not change profile storage, navigation, or the existing screen layouts.
+does not change profile storage or navigation.
+
+When no profiles exist, `WelcomeView` shows the offline mascot from
+`assets/images/welcome-mascot.svg`, privacy messaging, supported-currency count,
+and one profile-creation action. Its content scrolls on smaller screens and with
+larger text. Loading and storage errors remain separate states, and existing
+profiles open the dashboard directly. The welcome copy describes implemented
+features only; backup restore and spending rings from the mockup are not offered.
+
+### Creating profiles
+
+Both the welcome action and the dashboard's add-profile action use
+`showProfileDialog`: a rounded bottom sheet below 600 logical pixels wide, or a
+constrained dialog on larger screens. The shared form scrolls around the keyboard
+and large text, offers Neko/Piggy/Kuma/Boba avatars, validates the name inline,
+and previews the name, avatar, and currency as they change. Popular-currency chips
+supplement the existing searchable currency picker. Cancelling the picker retains
+the current choice; currency remains fixed after profile creation.
+
+Saving disables form controls, repeated submissions, and back/barrier dismissal.
+Failures appear in the form and allow retry without losing the entered choices.
+Avatar keys are typed domain values and persisted locally in the version-1
+schema. New profiles default to `neko` when no avatar is specified.
+Emoji artwork follows the platform's bundled emoji font and needs no network.
+Displaying saved avatars in the dashboard profile selector is a later integration
+step, separate from this creation form.
 
 ## Technology decisions
 
@@ -185,7 +210,7 @@ encryption.
 
 | Table | Key | Purpose |
 | --- | --- | --- |
-| `profiles` | `profile_id` | Local financial workspace, name, currency, scale. A profile is not a login identity. |
+| `profiles` | `profile_id` | Local financial workspace, name, avatar key, currency, scale. A profile is not a login identity. |
 | `categories` | `(profile_id, category_id)` | User-defined income/expense classifications, presentation metadata, default budget bucket, and archive state. |
 | `transactions` | `(profile_id, transaction_id)` | Optional notes, positive amount, type, category, occurrence timestamp. Category type must match transaction type. Indexed by profile/date. |
 | `budgets` | `(profile_id, budget_id)` | Named rule for a bounded reporting period. |
@@ -322,14 +347,15 @@ flutter analyze
 flutter test
 ```
 
-Regenerate bindings after changing the schema. Schema version 2 currently uses
-Drift's destructive fallback to drop and recreate the database on upgrade. This
-is an intentional pre-release reset because there are no consumer data or
-compatibility commitments yet; existing local data is permanently lost on such
-an upgrade. Before any public release, replace this with non-destructive
-migrations, export schema snapshots using Drift's migration tooling, and test
-upgrades from every supported released version. Never use destructive fallback
-to resolve migrations after release.
+Regenerate bindings after changing the schema. During current development, keep
+`schemaVersion` at 1 and edit the initial schema directly, without incremental
+migrations. Development data is disposable. After schema changes, clear the app's
+local storage or uninstall/reinstall the development app to create the current
+schema. This also applies to installations that briefly used version 2. Keeping
+the version unchanged does not automatically update an existing database; do not
+clear storage on every startup. Tests verify the fresh version-1 schema, avatar
+constraints, and file-backed close/reopen persistence. Before public release,
+establish schema versioning, snapshots, and non-destructive migration tests.
 
 Tests cover profile isolation, cross-profile foreign-key rejection, exact money
 storage, category CRUD/archive/type enforcement, notes, reactive updates, revision/dirty tracking,

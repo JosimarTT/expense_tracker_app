@@ -29,6 +29,18 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (length(trim(name)) > 0)',
   );
+  static const VerificationMeta _avatarKeyMeta = const VerificationMeta(
+    'avatarKey',
+  );
+  late final GeneratedColumn<String> avatarKey = GeneratedColumn<String>(
+    'avatar_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'neko\' CHECK (avatar_key IN (\'neko\', \'piggy\', \'kuma\', \'boba\'))',
+    defaultValue: const CustomExpression('\'neko\''),
+  );
   static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
     'currencyCode',
   );
@@ -135,6 +147,7 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
   List<GeneratedColumn> get $columns => [
     profileId,
     name,
+    avatarKey,
     currencyCode,
     currencyScale,
     autoSavings,
@@ -172,6 +185,12 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('avatar_key')) {
+      context.handle(
+        _avatarKeyMeta,
+        avatarKey.isAcceptableOrUnknown(data['avatar_key']!, _avatarKeyMeta),
+      );
     }
     if (data.containsKey('currency_code')) {
       context.handle(
@@ -267,6 +286,10 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      avatarKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar_key'],
+      )!,
       currencyCode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}currency_code'],
@@ -318,6 +341,7 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
 class Profile extends DataClass implements Insertable<Profile> {
   final String profileId;
   final String name;
+  final String avatarKey;
   final String currencyCode;
   final int currencyScale;
   final int autoSavings;
@@ -330,6 +354,7 @@ class Profile extends DataClass implements Insertable<Profile> {
   const Profile({
     required this.profileId,
     required this.name,
+    required this.avatarKey,
     required this.currencyCode,
     required this.currencyScale,
     required this.autoSavings,
@@ -345,6 +370,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     final map = <String, Expression>{};
     map['profile_id'] = Variable<String>(profileId);
     map['name'] = Variable<String>(name);
+    map['avatar_key'] = Variable<String>(avatarKey);
     map['currency_code'] = Variable<String>(currencyCode);
     map['currency_scale'] = Variable<int>(currencyScale);
     map['auto_savings'] = Variable<int>(autoSavings);
@@ -365,6 +391,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     return ProfilesCompanion(
       profileId: Value(profileId),
       name: Value(name),
+      avatarKey: Value(avatarKey),
       currencyCode: Value(currencyCode),
       currencyScale: Value(currencyScale),
       autoSavings: Value(autoSavings),
@@ -389,6 +416,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     return Profile(
       profileId: serializer.fromJson<String>(json['profile_id']),
       name: serializer.fromJson<String>(json['name']),
+      avatarKey: serializer.fromJson<String>(json['avatar_key']),
       currencyCode: serializer.fromJson<String>(json['currency_code']),
       currencyScale: serializer.fromJson<int>(json['currency_scale']),
       autoSavings: serializer.fromJson<int>(json['auto_savings']),
@@ -408,6 +436,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     return <String, dynamic>{
       'profile_id': serializer.toJson<String>(profileId),
       'name': serializer.toJson<String>(name),
+      'avatar_key': serializer.toJson<String>(avatarKey),
       'currency_code': serializer.toJson<String>(currencyCode),
       'currency_scale': serializer.toJson<int>(currencyScale),
       'auto_savings': serializer.toJson<int>(autoSavings),
@@ -423,6 +452,7 @@ class Profile extends DataClass implements Insertable<Profile> {
   Profile copyWith({
     String? profileId,
     String? name,
+    String? avatarKey,
     String? currencyCode,
     int? currencyScale,
     int? autoSavings,
@@ -435,6 +465,7 @@ class Profile extends DataClass implements Insertable<Profile> {
   }) => Profile(
     profileId: profileId ?? this.profileId,
     name: name ?? this.name,
+    avatarKey: avatarKey ?? this.avatarKey,
     currencyCode: currencyCode ?? this.currencyCode,
     currencyScale: currencyScale ?? this.currencyScale,
     autoSavings: autoSavings ?? this.autoSavings,
@@ -451,6 +482,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     return Profile(
       profileId: data.profileId.present ? data.profileId.value : this.profileId,
       name: data.name.present ? data.name.value : this.name,
+      avatarKey: data.avatarKey.present ? data.avatarKey.value : this.avatarKey,
       currencyCode: data.currencyCode.present
           ? data.currencyCode.value
           : this.currencyCode,
@@ -478,6 +510,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     return (StringBuffer('Profile(')
           ..write('profileId: $profileId, ')
           ..write('name: $name, ')
+          ..write('avatarKey: $avatarKey, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('currencyScale: $currencyScale, ')
           ..write('autoSavings: $autoSavings, ')
@@ -495,6 +528,7 @@ class Profile extends DataClass implements Insertable<Profile> {
   int get hashCode => Object.hash(
     profileId,
     name,
+    avatarKey,
     currencyCode,
     currencyScale,
     autoSavings,
@@ -511,6 +545,7 @@ class Profile extends DataClass implements Insertable<Profile> {
       (other is Profile &&
           other.profileId == this.profileId &&
           other.name == this.name &&
+          other.avatarKey == this.avatarKey &&
           other.currencyCode == this.currencyCode &&
           other.currencyScale == this.currencyScale &&
           other.autoSavings == this.autoSavings &&
@@ -525,6 +560,7 @@ class Profile extends DataClass implements Insertable<Profile> {
 class ProfilesCompanion extends UpdateCompanion<Profile> {
   final Value<String> profileId;
   final Value<String> name;
+  final Value<String> avatarKey;
   final Value<String> currencyCode;
   final Value<int> currencyScale;
   final Value<int> autoSavings;
@@ -538,6 +574,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   const ProfilesCompanion({
     this.profileId = const Value.absent(),
     this.name = const Value.absent(),
+    this.avatarKey = const Value.absent(),
     this.currencyCode = const Value.absent(),
     this.currencyScale = const Value.absent(),
     this.autoSavings = const Value.absent(),
@@ -552,6 +589,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   ProfilesCompanion.insert({
     required String profileId,
     required String name,
+    this.avatarKey = const Value.absent(),
     required String currencyCode,
     required int currencyScale,
     this.autoSavings = const Value.absent(),
@@ -571,6 +609,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   static Insertable<Profile> custom({
     Expression<String>? profileId,
     Expression<String>? name,
+    Expression<String>? avatarKey,
     Expression<String>? currencyCode,
     Expression<int>? currencyScale,
     Expression<int>? autoSavings,
@@ -585,6 +624,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     return RawValuesInsertable({
       if (profileId != null) 'profile_id': profileId,
       if (name != null) 'name': name,
+      if (avatarKey != null) 'avatar_key': avatarKey,
       if (currencyCode != null) 'currency_code': currencyCode,
       if (currencyScale != null) 'currency_scale': currencyScale,
       if (autoSavings != null) 'auto_savings': autoSavings,
@@ -601,6 +641,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   ProfilesCompanion copyWith({
     Value<String>? profileId,
     Value<String>? name,
+    Value<String>? avatarKey,
     Value<String>? currencyCode,
     Value<int>? currencyScale,
     Value<int>? autoSavings,
@@ -615,6 +656,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     return ProfilesCompanion(
       profileId: profileId ?? this.profileId,
       name: name ?? this.name,
+      avatarKey: avatarKey ?? this.avatarKey,
       currencyCode: currencyCode ?? this.currencyCode,
       currencyScale: currencyScale ?? this.currencyScale,
       autoSavings: autoSavings ?? this.autoSavings,
@@ -636,6 +678,9 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (avatarKey.present) {
+      map['avatar_key'] = Variable<String>(avatarKey.value);
     }
     if (currencyCode.present) {
       map['currency_code'] = Variable<String>(currencyCode.value);
@@ -675,6 +720,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     return (StringBuffer('ProfilesCompanion(')
           ..write('profileId: $profileId, ')
           ..write('name: $name, ')
+          ..write('avatarKey: $avatarKey, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('currencyScale: $currencyScale, ')
           ..write('autoSavings: $autoSavings, ')
@@ -5593,6 +5639,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $ProfilesCreateCompanionBuilder = ProfilesCompanion Function({
   required String profileId,
   required String name,
+  Value<String> avatarKey,
   required String currencyCode,
   required int currencyScale,
   Value<int> autoSavings,
@@ -5607,6 +5654,7 @@ typedef $ProfilesCreateCompanionBuilder = ProfilesCompanion Function({
 typedef $ProfilesUpdateCompanionBuilder = ProfilesCompanion Function({
   Value<String> profileId,
   Value<String> name,
+  Value<String> avatarKey,
   Value<String> currencyCode,
   Value<int> currencyScale,
   Value<int> autoSavings,
@@ -5721,6 +5769,11 @@ class $ProfilesFilterComposer extends Composer<_$AppDatabase, Profiles> {
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatarKey => $composableBuilder(
+    column: $table.avatarKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5888,6 +5941,11 @@ class $ProfilesOrderingComposer extends Composer<_$AppDatabase, Profiles> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get avatarKey => $composableBuilder(
+    column: $table.avatarKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
     builder: (column) => ColumnOrderings(column),
@@ -5947,6 +6005,9 @@ class $ProfilesAnnotationComposer extends Composer<_$AppDatabase, Profiles> {
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get avatarKey =>
+      $composableBuilder(column: $table.avatarKey, builder: (column) => column);
 
   GeneratedColumn<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
@@ -6121,6 +6182,7 @@ class $ProfilesTableManager
               ({
                 Value<String> profileId = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String> avatarKey = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
                 Value<int> currencyScale = const Value.absent(),
                 Value<int> autoSavings = const Value.absent(),
@@ -6134,6 +6196,7 @@ class $ProfilesTableManager
               }) => ProfilesCompanion(
                 profileId: profileId,
                 name: name,
+                avatarKey: avatarKey,
                 currencyCode: currencyCode,
                 currencyScale: currencyScale,
                 autoSavings: autoSavings,
@@ -6149,6 +6212,7 @@ class $ProfilesTableManager
               ({
                 required String profileId,
                 required String name,
+                Value<String> avatarKey = const Value.absent(),
                 required String currencyCode,
                 required int currencyScale,
                 Value<int> autoSavings = const Value.absent(),
@@ -6162,6 +6226,7 @@ class $ProfilesTableManager
               }) => ProfilesCompanion.insert(
                 profileId: profileId,
                 name: name,
+                avatarKey: avatarKey,
                 currencyCode: currencyCode,
                 currencyScale: currencyScale,
                 autoSavings: autoSavings,

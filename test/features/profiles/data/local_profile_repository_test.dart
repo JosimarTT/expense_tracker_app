@@ -57,6 +57,34 @@ void main() {
 
   tearDown(() => db.close());
 
+  test('Persists every avatar and defaults existing callers to Neko', () async {
+    for (final avatar in ProfileAvatar.values) {
+      await repository.create(
+        LocalProfile(
+          id: avatar.name,
+          name: avatar.name,
+          currencyCode: 'USD',
+          currencyScale: 2,
+          avatar: avatar,
+        ),
+      );
+      final saved = (await repository.watchProfiles().first).singleWhere(
+        (profile) => profile.id == avatar.name,
+      );
+      expect(saved.avatar, avatar);
+    }
+    expect(
+      (await repository.watchProfiles().first)
+          .singleWhere((profile) => profile.id == 'a')
+          .avatar,
+      ProfileAvatar.neko,
+    );
+    await expectLater(
+      db.customStatement("UPDATE profiles SET avatar_key = 'unknown'"),
+      throwsA(isA<Exception>()),
+    );
+  });
+
   test(
     'Persists supported currencies with their required decimal precision',
     () async {

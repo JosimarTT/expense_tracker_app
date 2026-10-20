@@ -125,9 +125,11 @@ void main() {
           Theme.of(tester.element(find.byType(Scaffold))).brightness,
           brightness,
         );
+        await tester.ensureVisible(find.text('Create your first profile'));
         await tester.tap(find.text('Create your first profile'));
         await tester.pumpAndSettle();
         expect(find.text('Create local profile'), findsOneWidget);
+        await tester.ensureVisible(find.text('Create'));
         await tester.tap(find.text('Create'));
         await tester.pumpAndSettle();
         expect(find.text('Enter a profile name.'), findsOneWidget);

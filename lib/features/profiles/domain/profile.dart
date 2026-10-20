@@ -1,5 +1,7 @@
 import '../../transactions/domain/entities/financial_transaction.dart';
 
+enum ProfileAvatar { neko, piggy, kuma, boba }
+
 class LocalProfile {
   const LocalProfile({
     required this.id,
@@ -7,6 +9,7 @@ class LocalProfile {
     required this.currencyCode,
     required this.currencyScale,
     this.autoSavings = false,
+    this.avatar = ProfileAvatar.neko,
   });
 
   final String id;
@@ -14,6 +17,7 @@ class LocalProfile {
   final String currencyCode;
   final int currencyScale;
   final bool autoSavings;
+  final ProfileAvatar avatar;
 }
 
 class TransactionCategory {

@@ -25,6 +25,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
             currencyCode: row.currencyCode,
             currencyScale: row.currencyScale,
             autoSavings: row.autoSavings == 1,
+            avatar: ProfileAvatar.values.byName(row.avatarKey),
           ),
       ],
     );
@@ -71,6 +72,7 @@ class LocalProfileRepository implements ProfileRepository, CategoryRepository {
             ProfilesCompanion.insert(
               profileId: profile.id,
               name: profile.name.trim(),
+              avatarKey: Value(profile.avatar.name),
               currencyCode: profile.currencyCode,
               currencyScale: profile.currencyScale,
               createdAt: now,

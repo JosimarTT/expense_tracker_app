@@ -39,12 +39,14 @@ void main() {
         ),
       );
       await settleDatabase(tester);
+      await tester.ensureVisible(find.text('Create your first profile'));
       await tester.tap(find.text('Create your first profile'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, 'Profile name'),
         'Personal',
       );
+      await tester.ensureVisible(find.byKey(const Key('profile-currency')));
       await tester.tap(find.byKey(const Key('profile-currency')));
       await tester.pumpAndSettle();
       final search = find.widgetWithText(TextField, 'Search currencies');
@@ -67,9 +69,12 @@ void main() {
       expect((currencyRow.subtitle! as Text).data, name);
       await tester.tap(codeLabel);
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Create'));
       await tester.tap(find.text('Create'));
       await settleDatabase(tester);
       expect(find.text('Personal ($code)'), findsOneWidget);
+      expect(find.text('Hi there, friend!'), findsNothing);
+      expect(find.byTooltip('Create profile'), findsOneWidget);
       final profile = await tester.runAsync(
         () => db.select(db.profiles).getSingle(),
       );
@@ -104,13 +109,73 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Create your first profile'), findsOneWidget);
+    await tester.ensureVisible(find.text('Create your first profile'));
     await tester.tap(find.text('Create your first profile'));
     await tester.pumpAndSettle();
     expect(find.text('Create local profile'), findsOneWidget);
+    await tester.ensureVisible(find.text('Create'));
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
     expect(find.text('Enter a profile name.'), findsOneWidget);
   });
+
+  testWidgets(
+    'Adding a profile uses the shared form and selects the saved profile',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await tester.runAsync(
+        () => LocalProfileRepository(db).create(
+          const LocalProfile(
+            id: 'existing',
+            name: 'Personal',
+            currencyCode: 'USD',
+            currencyScale: 2,
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(db)],
+          child: const ExpenseTrackerApp(),
+        ),
+      );
+      await settleDatabase(tester);
+      await tester.tap(find.byTooltip('Create profile'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose avatar'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close profile creation'));
+      await tester.pumpAndSettle();
+      expect(find.text('Personal (USD)'), findsOneWidget);
+      await tester.tap(find.byTooltip('Create profile'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('avatar-kuma')));
+      await tester.enterText(find.byType(TextFormField), 'Travel');
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('quick-currency-EUR')),
+      );
+      await tester.tap(find.byKey(const ValueKey('quick-currency-EUR')));
+      await tester.ensureVisible(find.text('Create'));
+      await tester.tap(find.text('Create'));
+      await settleDatabase(tester);
+      expect(find.text('Travel (EUR)'), findsOneWidget);
+      final profiles = await tester.runAsync(
+        () => LocalProfileRepository(db).watchProfiles().first,
+      );
+      expect(profiles, hasLength(2));
+      expect(
+        profiles!.singleWhere((profile) => profile.name == 'Travel').avatar,
+        ProfileAvatar.kuma,
+      );
+      expect(
+        profiles.singleWhere((profile) => profile.id == 'existing').avatar,
+        ProfileAvatar.neko,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('Shows storage failures explicitly with retry', (tester) async {
     await tester.pumpWidget(
@@ -217,6 +282,7 @@ void main() {
       await tester.tap(find.byKey(const Key('confirm-delete-profile')));
       await settleDatabase(tester);
       expect(find.text('Create your first profile'), findsOneWidget);
+      expect(find.text('Hi there, friend!'), findsOneWidget);
       expect(
         await tester.runAsync(() => db.select(db.profiles).get()),
         isEmpty,
@@ -247,12 +313,14 @@ void main() {
       ),
     );
     await settleDatabase(tester);
+    await tester.ensureVisible(find.text('Create your first profile'));
     await tester.tap(find.text('Create your first profile'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Profile name'),
       'Personal',
     );
+    await tester.ensureVisible(find.text('Create'));
     await tester.tap(find.text('Create'));
     await settleDatabase(tester);
     expect(find.text('Personal (USD)'), findsOneWidget);

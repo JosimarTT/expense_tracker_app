@@ -12,6 +12,7 @@ import '../../profiles/presentation/delete_profile_dialog.dart';
 import '../../profiles/presentation/category_manager_dialog.dart';
 import '../../profiles/presentation/category_avatar.dart';
 import '../../profiles/presentation/profile_dialog.dart';
+import '../../profiles/presentation/welcome_view.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../../transactions/presentation/transaction_dialog.dart';
@@ -29,28 +30,27 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   String? _selectedId;
 
   Future<void> _createProfile() async {
-    final id = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const ProfileDialog(),
-    );
+    final id = await showProfileDialog(context);
     if (id != null && mounted) setState(() => _selectedId = id);
   }
 
   @override
   Widget build(BuildContext context) {
     final profiles = ref.watch(profilesProvider);
+    final isWelcome = profiles.asData?.value.isEmpty ?? false;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expense Tracker'),
-        actions: [
-          IconButton(
-            onPressed: _createProfile,
-            tooltip: 'Create profile',
-            icon: const Icon(Icons.person_add_alt_1),
-          ),
-        ],
-      ),
+      appBar: isWelcome
+          ? null
+          : AppBar(
+              title: const Text('Expense Tracker'),
+              actions: [
+                IconButton(
+                  onPressed: _createProfile,
+                  tooltip: 'Create profile',
+                  icon: const Icon(Icons.person_add_alt_1),
+                ),
+              ],
+            ),
       body: profiles.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => _LoadError(
@@ -60,19 +60,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ),
         data: (items) {
           if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Your finances, local first'),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _createProfile,
-                    child: const Text('Create your first profile'),
-                  ),
-                ],
-              ),
-            );
+            return WelcomeView(onCreateProfile: _createProfile);
           }
           final selected =
               items.where((profile) => profile.id == _selectedId).firstOrNull ??

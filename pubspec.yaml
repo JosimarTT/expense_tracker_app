@@ -13,6 +13,7 @@ dependencies:
   drift: ^2.35.2
   drift_flutter: ^0.3.1
   fl_chart: ^1.2.0
+  flutter_svg: ^2.2.1
   intl: ^0.20.3
   uuid: ^4.6.0
 
@@ -25,6 +26,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/welcome-mascot.svg
   fonts:
     - family: Nunito
       fonts:
