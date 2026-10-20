@@ -32,6 +32,27 @@ migration testing. Real cloud sync, authentication, subscriptions,
 tenant memberships, shared editing, OCR, bank integrations, transfers, and
 multi-currency conversion are not implemented.
 
+## Interface theme
+
+The app follows the device's light/dark preference using the shared themes in
+`lib/app/theme/app_theme.dart`. Palette tokens live in
+`lib/app/theme/app_colors.dart`; widgets should use `Theme.of(context).colorScheme`
+and `textTheme` rather than hardcoded colors. Income, expense, and information
+foreground/container pairs are available through the `AppSemanticColors` theme
+extension. Use those pairs for readable semantic labels; the brighter raw palette
+tokens are decorative accents, not body-text colors.
+
+The Stitch palette uses cream/white light surfaces and espresso dark surfaces,
+with orange primary actions and coral secondary accents. Accessibility deviations
+from the guide are intentional: orange buttons use warm charcoal text rather than
+white, light secondary text and hints are darker, and semantic labels and focus
+outlines use stronger foregrounds. Cards and dialogs use 24dp corners, sheets
+32dp top corners, inputs 20dp corners, and primary buttons a 54dp minimum height.
+
+Nunito is bundled locally in `assets/fonts` so typography never needs a network
+request. Its SIL Open Font License is included beside the font. This foundation
+does not change profile storage, navigation, or the existing screen layouts.
+
 ## Technology decisions
 
 | Concern | Choice | Rationale |
