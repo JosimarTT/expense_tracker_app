@@ -44,10 +44,7 @@ void main() {
       await tester.ensureVisible(find.text('Create your first profile'));
       await tester.tap(find.text('Create your first profile'));
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Profile name'),
-        'Personal',
-      );
+      await tester.enterText(find.byType(TextFormField), 'Personal');
       await tester.ensureVisible(find.byKey(const Key('profile-currency')));
       await tester.tap(find.byKey(const Key('profile-currency')));
       await tester.pumpAndSettle();
@@ -141,7 +138,7 @@ void main() {
       await settleDatabase(tester);
       await tester.tap(find.byTooltip('Create profile'));
       await tester.pumpAndSettle();
-      expect(find.text('Choose avatar'), findsOneWidget);
+      expect(find.text('CHOOSE AVATAR'), findsOneWidget);
       await tester.tap(find.byTooltip('Close profile creation'));
       await tester.pumpAndSettle();
       expect(find.text('Personal (USD)'), findsOneWidget);
@@ -422,10 +419,7 @@ void main() {
     await tester.ensureVisible(find.text('Create your first profile'));
     await tester.tap(find.text('Create your first profile'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Profile name'),
-      'Personal',
-    );
+    await tester.enterText(find.byType(TextFormField), 'Personal');
     await tester.ensureVisible(find.text('Create'));
     await tester.tap(find.text('Create'));
     await settleDatabase(tester);

@@ -4,6 +4,12 @@ import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/money/currency.dart';
 
+String _currencySymbol(BuildContext context, String code) =>
+    NumberFormat.simpleCurrency(
+      locale: View.of(context).platformDispatcher.locale.toString(),
+      name: code,
+    ).currencySymbol;
+
 class CurrencyBadge extends StatelessWidget {
   const CurrencyBadge({required this.code, super.key});
 
@@ -12,25 +18,21 @@ class CurrencyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final symbol = NumberFormat.simpleCurrency(
-      locale: View.of(context).platformDispatcher.locale.toString(),
-      name: code,
-    ).currencySymbol;
     return ExcludeSemantics(
       child: Container(
         width: 48,
         height: 48,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle,
+          color: isDark ? AppColors.darkSurfaceWarm : AppColors.coralLight,
           borderRadius: BorderRadius.circular(16),
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
-            symbol,
+            _currencySymbol(context, code),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+              color: isDark ? AppColors.coralLight : AppColors.coral,
             ),
           ),
         ),
@@ -51,44 +53,79 @@ class PopularCurrencyChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 4,
-      children: [
-        for (final code in ['USD', 'EUR', 'JPY', 'GBP', 'BRL'])
-          Tooltip(
-            message: Currency.fromCode(code).name,
-            child: ChoiceChip(
-              key: ValueKey('quick-currency-$code'),
-              label: Text(code),
-              selected: code == selectedCode,
-              selectedColor: AppColors.primary,
-              checkmarkColor: Colors.white,
-              elevation: code == selectedCode ? 2 : 0,
-              pressElevation: 3,
-              shadowColor: AppColors.primary.withValues(alpha: 0.2),
-              shape: StadiumBorder(
-                side: BorderSide(
-                  color: code == selectedCode
-                      ? AppColors.primary
-                      : (Theme.of(context).brightness == Brightness.dark
-                            ? AppColors.darkBorder
-                            : AppColors.borderLight),
-                  width: code == selectedCode ? 1.5 : 1.2,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final code in ['USD', 'EUR', 'JPY', 'GBP', 'BRL'])
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Tooltip(
+                message: Currency.fromCode(code).name,
+                child: ChoiceChip(
+                  key: ValueKey('quick-currency-$code'),
+                  showCheckmark: false,
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _currencySymbol(context, code),
+                        style: TextStyle(
+                          color: code == selectedCode
+                              ? Colors.white
+                              : (isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.textMuted),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(code),
+                      if (code == selectedCode) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.check, size: 14),
+                      ],
+                    ],
+                  ),
+                  selected: code == selectedCode,
+                  selectedColor: AppColors.primary,
+                  backgroundColor: theme.colorScheme.surfaceContainerLow,
+                  elevation: 0,
+                  pressElevation: 0,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: code == selectedCode
+                          ? AppColors.primary
+                          : (isDark
+                                ? AppColors.darkBorder
+                                : AppColors.borderLight),
+                      width: code == selectedCode ? 1.5 : 1,
+                    ),
+                  ),
+                  labelStyle: TextStyle(
+                    color: code == selectedCode
+                        ? Colors.white
+                        : (isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textBody),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  onSelected: onSelected == null
+                      ? null
+                      : (_) => onSelected!(code),
                 ),
               ),
-              labelStyle: TextStyle(
-                color: code == selectedCode
-                    ? Colors.white
-                    : (Theme.of(context).brightness == Brightness.dark
-                          ? AppColors.darkTextMuted
-                          : AppColors.textBody),
-                fontWeight: FontWeight.w700,
-              ),
-              onSelected: onSelected == null ? null : (_) => onSelected!(code),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

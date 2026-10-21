@@ -4,14 +4,17 @@ import 'package:expense_tracker_app/app/providers.dart';
 import 'package:expense_tracker_app/app/theme/app_colors.dart';
 import 'package:expense_tracker_app/app/theme/app_theme.dart';
 import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
-import 'package:expense_tracker_app/features/profiles/presentation/profile_avatar.dart';
+import 'package:expense_tracker_app/features/profiles/presentation/currency_widgets.dart';
 import 'package:expense_tracker_app/features/profiles/presentation/profile_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _RecordingRepository implements ProfileRepository {
+  _RecordingRepository({this.profiles = const []});
+
   final created = <LocalProfile>[];
+  final List<LocalProfile> profiles;
   var save = Completer<void>();
 
   @override
@@ -21,7 +24,7 @@ class _RecordingRepository implements ProfileRepository {
   }
 
   @override
-  Stream<List<LocalProfile>> watchProfiles() => Stream.value([]);
+  Stream<List<LocalProfile>> watchProfiles() => Stream.value(profiles);
 
   @override
   Stream<List<TransactionCategory>> watchCategories(String profileId) =>
@@ -119,6 +122,29 @@ void main() {
         final nekoBorder = nekoStyle.side!.resolve({})!;
         expect(nekoBorder.color, AppColors.primary);
         expect(nekoBorder.width, 2);
+        final avatarButtons = [
+          for (final avatar in ProfileAvatar.values)
+            find.byKey(ValueKey('avatar-${avatar.name}')),
+        ];
+        final avatarWidths = [
+          for (final button in avatarButtons) tester.getSize(button).width,
+        ];
+        expect(
+          avatarWidths.reduce((a, b) => a > b ? a : b) -
+              avatarWidths.reduce((a, b) => a < b ? a : b),
+          lessThan(1),
+        );
+        for (final avatar in ProfileAvatar.values.skip(1)) {
+          final style = tester
+              .widget<OutlinedButton>(
+                find.byKey(ValueKey('avatar-${avatar.name}')),
+              )
+              .style!;
+          expect(
+            style.backgroundColor!.resolve({}),
+            isDark ? AppColors.darkSurface : AppColors.surfaceWarm,
+          );
+        }
         expect(
           find.descendant(
             of: find.byKey(const ValueKey('avatar-neko')),
@@ -126,49 +152,83 @@ void main() {
           ),
           findsOneWidget,
         );
+        final currencyBadge = find.descendant(
+          of: find.byKey(const Key('profile-currency')),
+          matching: find.byType(CurrencyBadge),
+        );
+        final badgeContainer = tester.widget<Container>(
+          find.descendant(of: currencyBadge, matching: find.byType(Container)),
+        );
+        expect(
+          (badgeContainer.decoration! as BoxDecoration).color,
+          isDark ? AppColors.darkSurfaceWarm : AppColors.coralLight,
+        );
+        expect(
+          tester
+              .widget<Text>(
+                find.descendant(of: currencyBadge, matching: find.text(r'$')),
+              )
+              .style!
+              .color,
+          isDark ? AppColors.coralLight : AppColors.coral,
+        );
         final piggyStyle = tester
             .widget<OutlinedButton>(find.byKey(const ValueKey('avatar-piggy')))
             .style!;
         expect(
           piggyStyle.backgroundColor!.resolve({}),
-          isDark ? AppColors.darkSurfaceWarm : AppColors.avatarPiggyBg,
+          isDark ? AppColors.darkSurface : AppColors.surfaceWarm,
         );
         final selectedChip = tester.widget<ChoiceChip>(
           find.byKey(const ValueKey('quick-currency-USD')),
         );
         expect(selectedChip.selectedColor, AppColors.primary);
-        expect(selectedChip.checkmarkColor, Colors.white);
-        expect(selectedChip.labelStyle?.color, Colors.white);
+        expect(selectedChip.elevation, 0);
+        expect(selectedChip.pressElevation, 0);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('quick-currency-USD')),
+            matching: find.text(r'$'),
+          ),
+          findsOneWidget,
+        );
         await tapVisible(tester, find.byKey(const ValueKey('avatar-piggy')));
+        final selectedPiggyStyle = tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('avatar-piggy')))
+            .style!;
+        expect(
+          selectedPiggyStyle.backgroundColor!.resolve({}),
+          isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle,
+        );
         await tester.ensureVisible(find.byType(TextFormField));
         await tester.enterText(find.byType(TextFormField), 'Travel');
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.check_circle), findsOneWidget);
         await tapVisible(
           tester,
           find.byKey(const ValueKey('quick-currency-JPY')),
         );
-        await tester.ensureVisible(find.byKey(const Key('profile-preview')));
-        await tester.pumpAndSettle();
-        final preview = find.byKey(const Key('profile-preview'));
+        expect(find.byKey(const Key('profile-preview')), findsNothing);
+        final noticeStyle =
+            tester
+                    .widget<Container>(find.byKey(const Key('currency-notice')))
+                    .decoration!
+                as BoxDecoration;
         expect(
-          find.descendant(of: preview, matching: find.text('Travel')),
-          findsOneWidget,
+          noticeStyle.color,
+          isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle,
         );
+        final createStyle = tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Create'))
+            .style!;
         expect(
-          find.descendant(of: preview, matching: find.text('Piggy • JPY')),
-          findsOneWidget,
+          createStyle.shape!.resolve({}),
+          isA<RoundedRectangleBorder>().having(
+            (shape) => shape.borderRadius,
+            'borderRadius',
+            BorderRadius.circular(16),
+          ),
         );
-        expect(
-          tester
-              .widget<ProfileAvatarIcon>(
-                find.descendant(
-                  of: preview,
-                  matching: find.byType(ProfileAvatarIcon),
-                ),
-              )
-              .avatar,
-          ProfileAvatar.piggy,
-        );
-        expect(find.text('Starting total: ¥0'), findsOneWidget);
         tester.view.viewInsets = const FakeViewPadding(bottom: 240);
         addTearDown(tester.view.resetViewInsets);
         await tester.pumpAndSettle();
@@ -285,5 +345,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.created, isEmpty);
     expect(find.byType(ProfileDialog), findsNothing);
+  });
+
+  testWidgets('duplicate profile names are rejected case-insensitively', (
+    tester,
+  ) async {
+    final repository = _RecordingRepository(
+      profiles: const [
+        LocalProfile(
+          id: 'existing',
+          name: 'Personal',
+          currencyCode: 'USD',
+          currencyScale: 2,
+        ),
+      ],
+    );
+    await _openForm(tester, repository);
+    await tester.enterText(find.byType(TextFormField), ' personal ');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('A profile with this name already exists.'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.check_circle), findsNothing);
+    await tapVisible(tester, find.text('Create'));
+    await tester.pumpAndSettle();
+    expect(repository.created, isEmpty);
+    expect(find.byType(ProfileDialog), findsOneWidget);
   });
 }

@@ -113,6 +113,7 @@ void main() {
     testWidgets('popular $code returns the selected code', (tester) async {
       String? selected;
       await _openPicker(tester, onResult: (value) => selected = value);
+      await tester.ensureVisible(find.byKey(ValueKey('quick-currency-$code')));
       await tester.tap(find.byKey(ValueKey('quick-currency-$code')));
       await tester.pumpAndSettle();
       expect(selected, code);

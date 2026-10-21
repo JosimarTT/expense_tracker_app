@@ -53,6 +53,7 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
   ProfileAvatar _avatar = ProfileAvatar.neko;
   String _currency = 'USD';
   String? _error;
+  String? _nameError;
   bool _saving = false;
 
   @override
@@ -76,6 +77,33 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
       _saving = true;
       _error = null;
     });
+    List<LocalProfile> profiles;
+    try {
+      profiles =
+          ref.read(profilesProvider).asData?.value ??
+          await ref.read(profilesProvider.future);
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not verify profile name: $error';
+        });
+      }
+      return;
+    }
+    final nameError = _validateName(_name.text, profiles);
+    if (nameError != null) {
+      setState(() {
+        _saving = false;
+        _nameError = nameError;
+      });
+      await Scrollable.ensureVisible(
+        _nameFieldKey.currentContext!,
+        alignment: 0.2,
+        duration: const Duration(milliseconds: 200),
+      );
+      return;
+    }
     try {
       final profile = LocalProfile(
         id: ref.read(idGeneratorProvider).generate(),
@@ -99,6 +127,17 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
     }
   }
 
+  String? _validateName(String? value, List<LocalProfile> profiles) {
+    final name = value?.trim() ?? '';
+    if (name.isEmpty) return 'Enter a profile name.';
+    if (profiles.any(
+      (profile) => profile.name.trim().toLowerCase() == name.toLowerCase(),
+    )) {
+      return 'A profile with this name already exists.';
+    }
+    return null;
+  }
+
   Future<void> _chooseCurrency() async {
     FocusScope.of(context).unfocus();
     final selected = await showDialog<String>(
@@ -114,6 +153,10 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final profilesState = ref.watch(profilesProvider);
+    final profiles = profilesState.asData?.value ?? const <LocalProfile>[];
+    final nameError = _validateName(_name.text, profiles);
+    final nameIsValid = profilesState.asData != null && nameError == null;
     final media = MediaQuery.of(context);
     final currency = Currency.fromCode(_currency);
     final locale = View.of(context).platformDispatcher.locale.toString();
@@ -164,76 +207,41 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                 ],
               ),
               const SizedBox(height: 20),
-              Text('Choose avatar', style: theme.textTheme.titleMedium),
+              Text(
+                'CHOOSE AVATAR',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 13,
+                  letterSpacing: 0.5,
+                ),
+              ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Row(
                 children: [
-                  for (final avatar in ProfileAvatar.values)
-                    Semantics(
-                      selected: avatar == _avatar,
-                      child: OutlinedButton(
-                        key: ValueKey('avatar-${avatar.name}'),
-                        onPressed: _saving
-                            ? null
-                            : () => setState(() => _avatar = avatar),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.all(12),
-                          backgroundColor: avatar == _avatar
-                              ? (theme.brightness == Brightness.dark
-                                    ? AppColors.darkSurfaceWarm
-                                    : AppColors.primarySubtle)
-                              : avatar.backgroundColor(theme.brightness),
-                          foregroundColor: avatar == _avatar
-                              ? (theme.brightness == Brightness.dark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.textHeadline)
-                              : colors.onSurface,
-                          side: BorderSide(
-                            color: avatar == _avatar
-                                ? AppColors.primary
-                                : (theme.brightness == Brightness.dark
-                                      ? AppColors.darkBorder
-                                      : AppColors.borderLight),
-                            width: avatar == _avatar ? 2 : 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ProfileAvatarIcon(avatar: avatar),
-                                const SizedBox(height: 4),
-                                Text(avatar.label),
-                              ],
-                            ),
-                            if (avatar == _avatar)
-                              Positioned(
-                                top: -18,
-                                right: -18,
-                                child: CircleAvatar(
-                                  radius: 10,
-                                  backgroundColor: AppColors.primary,
-                                  child: const Icon(
-                                    Icons.check,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                  for (
+                    var index = 0;
+                    index < ProfileAvatar.values.length;
+                    index++
+                  ) ...[
+                    if (index > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildAvatarButton(
+                        ProfileAvatar.values[index],
+                        theme,
+                        colors,
                       ),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 20),
+              Text(
+                'PROFILE NAME',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 13,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
               TextFormField(
                 key: _nameFieldKey,
                 controller: _name,
@@ -241,18 +249,36 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'Profile name',
+                decoration: InputDecoration(
                   hintText: 'e.g. Personal',
-                  prefixIcon: Icon(Icons.person_outline),
+                  prefixIcon: const Icon(Icons.person_outline),
+                  suffixIcon: nameIsValid
+                      ? const Icon(
+                          Icons.check_circle,
+                          color: AppColors.mint,
+                          semanticLabel: 'Profile name is available',
+                        )
+                      : null,
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter a profile name.'
-                    : null,
-                onChanged: (_) => setState(() {}),
+                forceErrorText: _nameError,
+                validator: (value) => profilesState.asData == null
+                    ? (value == null || value.trim().isEmpty
+                          ? 'Enter a profile name.'
+                          : null)
+                    : _validateName(value, profiles),
+                onChanged: (_) => setState(() {
+                  _error = null;
+                  _nameError = null;
+                }),
               ),
               const SizedBox(height: 20),
-              Text('Profile currency', style: theme.textTheme.titleMedium),
+              Text(
+                'PROFILE CURRENCY',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 13,
+                  letterSpacing: 0.5,
+                ),
+              ),
               const SizedBox(height: 8),
               Material(
                 color: colors.surfaceContainerLow,
@@ -280,66 +306,50 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                     : (code) => setState(() => _currency = code),
               ),
               const SizedBox(height: 16),
-              Card(
-                margin: EdgeInsets.zero,
-                color: colors.primaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lock_outline,
-                        size: 20,
-                        color: colors.onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Currency is fixed for this profile. Data stays on this device.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colors.onPrimaryContainer,
-                          ),
-                        ),
-                      ),
-                    ],
+              Container(
+                key: const Key('currency-notice'),
+                decoration: BoxDecoration(
+                  color: theme.brightness == Brightness.dark
+                      ? colors.surfaceContainerLow
+                      : AppColors.primarySubtle,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: theme.brightness == Brightness.dark
+                        ? AppColors.darkBorder
+                        : AppColors.primaryLight,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text('Profile preview', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Card(
-                key: const Key('profile-preview'),
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ProfileAvatarIcon(avatar: _avatar),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _name.text.trim().isEmpty
-                                  ? 'Your profile'
-                                  : _name.text.trim(),
-                              style: theme.textTheme.titleMedium,
-                            ),
-                            Text('${_avatar.label} • $_currency'),
-                            Text(
-                              'Starting total: ${formatMoney(0, _currency, currency.scale, locale: locale)}',
-                            ),
-                          ],
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.lock_outline,
+                      size: 18,
+                      color: AppColors.primaryDark,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Currency is fixed for this profile. Data stays on this device.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurface,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
+              if (profilesState.hasError) ...[
+                const SizedBox(height: 16),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    'Could not load profiles to verify the name.',
+                    style: TextStyle(color: colors.error),
+                  ),
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Semantics(
@@ -350,6 +360,12 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _saving ? null : _save,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
                 child: Text(_saving ? 'Saving...' : 'Create'),
               ),
               TextButton(
@@ -369,6 +385,64 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
               child: SizedBox(width: double.infinity, child: content),
             )
           : Dialog(child: content),
+    );
+  }
+
+  Widget _buildAvatarButton(
+    ProfileAvatar avatar,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    final isSelected = avatar == _avatar;
+    final isDark = theme.brightness == Brightness.dark;
+    return Semantics(
+      selected: isSelected,
+      child: OutlinedButton(
+        key: ValueKey('avatar-${avatar.name}'),
+        onPressed: _saving ? null : () => setState(() => _avatar = avatar),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 76),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          backgroundColor: isSelected
+              ? (isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle)
+              : (isDark ? AppColors.darkSurface : colors.surfaceContainerLow),
+          foregroundColor: isSelected
+              ? (isDark ? AppColors.darkTextPrimary : AppColors.primaryDark)
+              : colors.onSurfaceVariant,
+          side: BorderSide(
+            color: isSelected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkBorder : AppColors.borderLight),
+            width: isSelected ? 2 : 1,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ProfileAvatarIcon(avatar: avatar),
+                const SizedBox(height: 4),
+                Text(avatar.label, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            if (isSelected)
+              Positioned(
+                top: -18,
+                right: -18,
+                child: CircleAvatar(
+                  radius: 10,
+                  backgroundColor: AppColors.primary,
+                  child: const Icon(Icons.check, size: 12, color: Colors.white),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

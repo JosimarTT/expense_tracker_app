@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_colors.dart';
 import '../domain/profile.dart';
 
 extension ProfileAvatarPresentation on ProfileAvatar {
@@ -17,16 +16,6 @@ extension ProfileAvatarPresentation on ProfileAvatar {
     ProfileAvatar.kuma => '🐻',
     ProfileAvatar.boba => '☕',
   };
-
-  Color backgroundColor(Brightness brightness) {
-    if (brightness == Brightness.dark) return AppColors.darkSurfaceWarm;
-    return switch (this) {
-      ProfileAvatar.neko => AppColors.avatarNekoBg,
-      ProfileAvatar.piggy => AppColors.avatarPiggyBg,
-      ProfileAvatar.kuma => AppColors.avatarKumaBg,
-      ProfileAvatar.boba => AppColors.avatarBobaBg,
-    };
-  }
 }
 
 class ProfileAvatarIcon extends StatelessWidget {
