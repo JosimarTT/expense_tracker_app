@@ -8,21 +8,17 @@ abstract final class AppTheme {
 
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final surface = isDark ? AppColors.darkSurface : AppColors.cardSurface;
     final warmSurface = isDark
         ? AppColors.darkSurfaceWarm
-        : AppColors.lightSurfaceWarm;
-    final background = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final text = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.lightTextPrimary;
+        : AppColors.surfaceWarm;
+    final background = isDark ? AppColors.darkScaffoldBg : AppColors.scaffoldBg;
+    final text = isDark ? AppColors.darkTextPrimary : AppColors.textHeadline;
     final secondaryText = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.lightTextSecondary;
-    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final accentText = isDark
-        ? AppColors.primaryLight
-        : const Color(0xFF9C4C00);
+        ? AppColors.darkTextMuted
+        : AppColors.textMuted;
+    final border = isDark ? AppColors.darkBorder : AppColors.borderLight;
+    final accentText = isDark ? AppColors.primaryLight : AppColors.textBody;
     final semantic = isDark ? AppSemanticColors.dark : AppSemanticColors.light;
     final scheme =
         ColorScheme.fromSeed(
@@ -30,21 +26,23 @@ abstract final class AppTheme {
           brightness: brightness,
         ).copyWith(
           primary: AppColors.primary,
-          onPrimary: AppColors.lightTextPrimary,
-          primaryContainer: isDark ? warmSurface : AppColors.primaryLight,
-          onPrimaryContainer: accentText,
-          secondary: AppColors.secondary,
-          onSecondary: AppColors.lightTextPrimary,
+          onPrimary: Colors.white,
+          primaryContainer: isDark
+              ? AppColors.darkSurfaceWarm
+              : AppColors.primaryLight,
+          onPrimaryContainer: isDark ? AppColors.darkTextPrimary : text,
+          secondary: AppColors.coral,
+          onSecondary: AppColors.textHeadline,
           secondaryContainer: isDark
-              ? const Color(0xFF4B2B27)
-              : AppColors.secondaryLight,
-          onSecondaryContainer: isDark
-              ? AppColors.secondaryLight
-              : const Color(0xFF873B32),
-          tertiary: semantic.info,
-          onTertiary: isDark ? AppColors.darkBg : Colors.white,
-          tertiaryContainer: semantic.infoContainer,
-          onTertiaryContainer: semantic.info,
+              ? AppColors.darkSurfaceWarm
+              : AppColors.coralLight,
+          onSecondaryContainer: isDark ? AppColors.darkTextPrimary : text,
+          tertiary: AppColors.sky,
+          onTertiary: AppColors.textHeadline,
+          tertiaryContainer: isDark
+              ? AppColors.darkSurfaceWarm
+              : AppColors.skyLight,
+          onTertiaryContainer: isDark ? AppColors.darkTextPrimary : text,
           surface: surface,
           onSurface: text,
           onSurfaceVariant: secondaryText,
@@ -55,21 +53,21 @@ abstract final class AppTheme {
           surfaceContainer: warmSurface,
           surfaceContainerHigh: warmSurface,
           surfaceContainerHighest: warmSurface,
-          outline: secondaryText,
+          outline: isDark ? AppColors.darkTextMuted : AppColors.borderInput,
           outlineVariant: border,
-          error: semantic.expense,
-          onError: isDark ? AppColors.darkBg : Colors.white,
-          errorContainer: semantic.expenseContainer,
-          onErrorContainer: semantic.expense,
+          error: AppColors.coral,
+          onError: AppColors.textHeadline,
+          errorContainer: isDark
+              ? AppColors.darkSurfaceWarm
+              : AppColors.coralLight,
+          onErrorContainer: isDark ? AppColors.darkTextPrimary : text,
           inverseSurface: isDark
               ? AppColors.darkTextPrimary
-              : AppColors.lightTextPrimary,
+              : AppColors.textHeadline,
           onInverseSurface: isDark
-              ? AppColors.lightTextPrimary
+              ? AppColors.textHeadline
               : AppColors.darkTextPrimary,
-          inversePrimary: isDark
-              ? const Color(0xFF9C4C00)
-              : AppColors.primaryLight,
+          inversePrimary: AppColors.primaryDark,
           surfaceTint: Colors.transparent,
         );
     final base = ThemeData(
@@ -86,34 +84,42 @@ abstract final class AppTheme {
     );
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(20),
-      borderSide: BorderSide(color: secondaryText),
+      borderSide: BorderSide(
+        color: isDark ? AppColors.darkBorder : AppColors.borderInput,
+        width: isDark ? 1 : 1.2,
+      ),
     );
 
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
         headlineMedium: base.textTheme.headlineMedium?.copyWith(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textHeadline,
           fontSize: 24,
           fontWeight: FontWeight.w800,
         ),
         titleLarge: base.textTheme.titleLarge?.copyWith(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textHeadline,
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
         titleMedium: base.textTheme.titleMedium?.copyWith(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textHeadline,
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
         bodyLarge: base.textTheme.bodyLarge?.copyWith(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textBody,
           fontSize: 15,
           fontWeight: FontWeight.w600,
         ),
         bodyMedium: base.textTheme.bodyMedium?.copyWith(
+          color: secondaryText,
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
       ),
       dividerColor: border,
-      hintColor: secondaryText,
+      hintColor: isDark ? AppColors.darkTextMuted : AppColors.textPlaceholder,
       appBarTheme: AppBarThemeData(
         backgroundColor: background,
         foregroundColor: text,
@@ -128,13 +134,13 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: surface,
+        backgroundColor: isDark ? surface : AppColors.modalSurface,
         shape: shape,
         surfaceTintColor: Colors.transparent,
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: surface,
-        modalBackgroundColor: surface,
+        backgroundColor: isDark ? surface : AppColors.modalSurface,
+        modalBackgroundColor: isDark ? surface : AppColors.modalSurface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
@@ -184,7 +190,10 @@ abstract final class AppTheme {
         border: inputBorder,
         enabledBorder: inputBorder,
         focusedBorder: inputBorder.copyWith(
-          borderSide: BorderSide(color: accentText, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.borderInputFocused,
+            width: 2,
+          ),
         ),
         errorBorder: inputBorder.copyWith(
           borderSide: BorderSide(color: scheme.error),
@@ -192,9 +201,13 @@ abstract final class AppTheme {
         focusedErrorBorder: inputBorder.copyWith(
           borderSide: BorderSide(color: scheme.error, width: 2),
         ),
-        hintStyle: TextStyle(color: secondaryText),
+        hintStyle: TextStyle(
+          color: isDark ? AppColors.darkTextMuted : AppColors.textPlaceholder,
+        ),
         labelStyle: TextStyle(color: secondaryText),
-        floatingLabelStyle: TextStyle(color: accentText),
+        floatingLabelStyle: const TextStyle(
+          color: AppColors.borderInputFocused,
+        ),
       ),
     );
   }

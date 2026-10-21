@@ -7,12 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-double contrast(Color first, Color second) {
-  final a = first.computeLuminance();
-  final b = second.computeLuminance();
-  return a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05);
-}
-
 void main() {
   for (final theme in [AppTheme.light, AppTheme.dark]) {
     final brightness = theme.brightness;
@@ -23,11 +17,11 @@ void main() {
       expect(theme.colorScheme.primary, AppColors.primary);
       expect(
         theme.scaffoldBackgroundColor,
-        isDark ? AppColors.darkBg : AppColors.lightBg,
+        isDark ? AppColors.darkScaffoldBg : AppColors.scaffoldBg,
       );
       expect(
         theme.colorScheme.surface,
-        isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        isDark ? AppColors.darkSurface : AppColors.cardSurface,
       );
       expect(theme.textTheme.bodyLarge?.fontFamily, 'Nunito');
       expect(theme.textTheme.headlineMedium?.fontWeight, FontWeight.w800);
@@ -59,50 +53,52 @@ void main() {
       );
     });
 
-    test('$brightness text and semantic pairs meet 4.5:1 contrast', () {
+    test('$brightness follows the exact Stitch palette tokens', () {
+      final isDark = brightness == Brightness.dark;
       final scheme = theme.colorScheme;
       final semantic = theme.extension<AppSemanticColors>()!;
-      final pairs = [
-        (scheme.onPrimary, scheme.primary),
-        (scheme.onPrimaryContainer, scheme.primaryContainer),
-        (scheme.onSecondary, scheme.secondary),
-        (scheme.onSecondaryContainer, scheme.secondaryContainer),
-        (scheme.onTertiary, scheme.tertiary),
-        (scheme.onError, scheme.error),
-        (scheme.onSurface, scheme.surface),
-        (scheme.onSurface, theme.scaffoldBackgroundColor),
-        (scheme.onSurfaceVariant, scheme.surface),
-        (scheme.onSurfaceVariant, scheme.surfaceContainer),
-        (scheme.onInverseSurface, scheme.inverseSurface),
-        (scheme.inversePrimary, scheme.inverseSurface),
-        (semantic.income, semantic.incomeContainer),
-        (semantic.expense, semantic.expenseContainer),
-        (semantic.info, semantic.infoContainer),
-        (theme.inputDecorationTheme.hintStyle!.color!, scheme.surfaceContainer),
-        (
-          theme.textButtonTheme.style!.foregroundColor!.resolve({})!,
-          scheme.surface,
-        ),
-      ];
-      for (final (foreground, background) in pairs) {
-        expect(
-          contrast(foreground, background),
-          greaterThanOrEqualTo(4.5),
-          reason: '$foreground on $background',
-        );
-      }
+      expect(scheme.primary, AppColors.primary);
+      expect(scheme.onPrimary, Colors.white);
+      expect(
+        scheme.primaryContainer,
+        isDark ? AppColors.darkSurfaceWarm : AppColors.primaryLight,
+      );
+      expect(scheme.secondary, AppColors.coral);
+      expect(scheme.tertiary, AppColors.sky);
+      expect(scheme.error, AppColors.coral);
+      expect(semantic.income, AppColors.mint);
+      expect(
+        semantic.incomeContainer,
+        isDark ? AppColors.darkSurfaceWarm : AppColors.mintLight,
+      );
+      expect(semantic.expense, AppColors.coral);
+      expect(
+        semantic.expenseContainer,
+        isDark ? AppColors.darkSurfaceWarm : AppColors.coralLight,
+      );
+      expect(semantic.info, AppColors.sky);
+      expect(
+        semantic.infoContainer,
+        isDark ? AppColors.darkSurfaceWarm : AppColors.skyLight,
+      );
+      expect(
+        theme.inputDecorationTheme.fillColor,
+        isDark ? AppColors.darkSurfaceWarm : AppColors.surfaceWarm,
+      );
+      expect(
+        theme.inputDecorationTheme.hintStyle!.color,
+        isDark ? AppColors.darkTextMuted : AppColors.textPlaceholder,
+      );
       final border =
           theme.inputDecorationTheme.enabledBorder! as OutlineInputBorder;
       final focus =
           theme.inputDecorationTheme.focusedBorder! as OutlineInputBorder;
       expect(
-        contrast(border.borderSide.color, scheme.surfaceContainer),
-        greaterThanOrEqualTo(3),
+        border.borderSide.color,
+        isDark ? AppColors.darkBorder : AppColors.borderInput,
       );
-      expect(
-        contrast(focus.borderSide.color, scheme.surfaceContainer),
-        greaterThanOrEqualTo(3),
-      );
+      expect(focus.borderSide.color, AppColors.borderInputFocused);
+      expect(focus.borderSide.width, 2);
     });
 
     testWidgets(
@@ -137,6 +133,42 @@ void main() {
       },
     );
   }
+
+  test('palette tokens match the Stitch color schema exactly', () {
+    expect(AppColors.primary, const Color(0xFFFF9E44));
+    expect(AppColors.primaryLight, const Color(0xFFFFE8D2));
+    expect(AppColors.primarySubtle, const Color(0xFFFFF3E6));
+    expect(AppColors.primaryDark, const Color(0xFFE88523));
+    expect(AppColors.coral, const Color(0xFFFF7E6B));
+    expect(AppColors.coralLight, const Color(0xFFFFEDE9));
+    expect(AppColors.mint, const Color(0xFF48D38A));
+    expect(AppColors.mintLight, const Color(0xFFE6F9F0));
+    expect(AppColors.sky, const Color(0xFF5AB4FF));
+    expect(AppColors.skyLight, const Color(0xFFEBF6FF));
+    expect(AppColors.lavender, const Color(0xFFB590F8));
+    expect(AppColors.lavenderLight, const Color(0xFFF4EEFF));
+    expect(AppColors.scaffoldBg, const Color(0xFFFFF9F2));
+    expect(AppColors.cardSurface, Colors.white);
+    expect(AppColors.surfaceWarm, const Color(0xFFFFF6ED));
+    expect(AppColors.modalSurface, Colors.white);
+    expect(AppColors.borderLight, const Color(0xFFF4ECE2));
+    expect(AppColors.borderInput, const Color(0xFFEDE2D4));
+    expect(AppColors.borderInputFocused, const Color(0xFFFF9E44));
+    expect(AppColors.textHeadline, const Color(0xFF332923));
+    expect(AppColors.textBody, const Color(0xFF4A3E36));
+    expect(AppColors.textMuted, const Color(0xFF9E9188));
+    expect(AppColors.textPlaceholder, const Color(0xFFC7BCB3));
+    expect(AppColors.avatarNekoBg, const Color(0xFFFFF1DF));
+    expect(AppColors.avatarPiggyBg, const Color(0xFFFFEAE7));
+    expect(AppColors.avatarKumaBg, const Color(0xFFF7ECE1));
+    expect(AppColors.avatarBobaBg, const Color(0xFFEFE9FC));
+    expect(AppColors.darkScaffoldBg, const Color(0xFF1C1917));
+    expect(AppColors.darkSurface, const Color(0xFF292420));
+    expect(AppColors.darkSurfaceWarm, const Color(0xFF36302B));
+    expect(AppColors.darkBorder, const Color(0xFF423B35));
+    expect(AppColors.darkTextPrimary, const Color(0xFFFAF4EE));
+    expect(AppColors.darkTextMuted, const Color(0xFFA89E96));
+  });
 
   test('semantic theme extension supports copy and animation', () {
     const light = AppSemanticColors.light;

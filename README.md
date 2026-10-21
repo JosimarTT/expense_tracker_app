@@ -42,12 +42,19 @@ foreground/container pairs are available through the `AppSemanticColors` theme
 extension. Use those pairs for readable semantic labels; the brighter raw palette
 tokens are decorative accents, not body-text colors.
 
-The Stitch palette uses cream/white light surfaces and espresso dark surfaces,
-with orange primary actions and coral secondary accents. Accessibility deviations
-from the guide are intentional: orange buttons use warm charcoal text rather than
-white, light secondary text and hints are darker, and semantic labels and focus
-outlines use stronger foregrounds. Cards and dialogs use 24dp corners, sheets
-32dp top corners, inputs 20dp corners, and primary buttons a 54dp minimum height.
+The current Stitch palette in
+`design/stitch/vivid-flutter-color-palette-ui-fixes.md` is the source of truth.
+`AppColors` maps its named tokens directly; light surfaces are warm vanilla and
+white, while dark surfaces use espresso neutrals. Inputs use the specified warm
+biscuit resting border and vivid orange focus border. Avatar cards use their
+individual pastel backgrounds, selected avatars use a subtle orange fill and a
+check badge, and selected currency chips use vivid orange with white foregrounds.
+Cards and dialogs use 24dp corners, sheets 32dp top corners, inputs 20dp corners,
+and primary buttons a 54dp minimum height.
+
+Use the scheme and `AppSemanticColors` tokens for widget styling. Improvements
+to palette contrast should be proposed separately rather than silently changing
+the specified colors.
 
 Nunito is bundled locally in `assets/fonts` so typography never needs a network
 request. Its SIL Open Font License is included beside the font. This foundation

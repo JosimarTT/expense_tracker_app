@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/theme/app_colors.dart';
 import '../../../core/money/currency.dart';
 
 class CurrencyBadge extends StatelessWidget {
@@ -10,7 +11,7 @@ class CurrencyBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final symbol = NumberFormat.simpleCurrency(
       locale: View.of(context).platformDispatcher.locale.toString(),
       name: code,
@@ -21,15 +22,16 @@ class CurrencyBadge extends StatelessWidget {
         height: 48,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: colors.primaryContainer,
+          color: isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle,
           borderRadius: BorderRadius.circular(16),
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             symbol,
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(color: colors.onPrimaryContainer),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+            ),
           ),
         ),
       ),
@@ -49,7 +51,6 @@ class PopularCurrencyChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Wrap(
       spacing: 8,
       runSpacing: 4,
@@ -61,12 +62,28 @@ class PopularCurrencyChips extends StatelessWidget {
               key: ValueKey('quick-currency-$code'),
               label: Text(code),
               selected: code == selectedCode,
-              selectedColor: colors.primaryContainer,
-              checkmarkColor: colors.onPrimaryContainer,
+              selectedColor: AppColors.primary,
+              checkmarkColor: Colors.white,
+              elevation: code == selectedCode ? 2 : 0,
+              pressElevation: 3,
+              shadowColor: AppColors.primary.withValues(alpha: 0.2),
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: code == selectedCode
+                      ? AppColors.primary
+                      : (Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkBorder
+                            : AppColors.borderLight),
+                  width: code == selectedCode ? 1.5 : 1.2,
+                ),
+              ),
               labelStyle: TextStyle(
                 color: code == selectedCode
-                    ? colors.onPrimaryContainer
-                    : colors.onSurface,
+                    ? Colors.white
+                    : (Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.darkTextMuted
+                          : AppColors.textBody),
+                fontWeight: FontWeight.w700,
               ),
               onSelected: onSelected == null ? null : (_) => onSelected!(code),
             ),

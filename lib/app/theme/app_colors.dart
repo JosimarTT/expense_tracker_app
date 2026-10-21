@@ -1,30 +1,45 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const primary = Color(0xFFFF9F43);
-  static const primaryLight = Color(0xFFFFEAD1);
-  static const primaryDark = Color(0xFFE58325);
-  static const secondary = Color(0xFFFF8577);
-  static const secondaryLight = Color(0xFFFFE5E2);
-  static const income = Color(0xFF2ECC71);
-  static const incomeBg = Color(0xFFE8F8F0);
-  static const expense = Color(0xFFFF5252);
-  static const expenseBg = Color(0xFFFFEEEE);
-  static const info = Color(0xFF54A0FF);
-  static const infoBg = Color(0xFFEBF3FF);
+  static const primary = Color(0xFFFF9E44);
+  static const primaryLight = Color(0xFFFFE8D2);
+  static const primarySubtle = Color(0xFFFFF3E6);
+  static const primaryDark = Color(0xFFE88523);
 
-  static const lightBg = Color(0xFFFAF7F2);
-  static const lightSurface = Color(0xFFFFFFFF);
-  static const lightSurfaceWarm = Color(0xFFFFF9F2);
-  static const lightBorder = Color(0xFFF0EAE1);
-  static const lightTextPrimary = Color(0xFF2D2621);
-  static const lightTextSecondary = Color(0xFF70655D);
-  static const darkBg = Color(0xFF181614);
-  static const darkSurface = Color(0xFF24201D);
-  static const darkSurfaceWarm = Color(0xFF2D2824);
-  static const darkBorder = Color(0xFF38322D);
-  static const darkTextPrimary = Color(0xFFF7F2EC);
-  static const darkTextSecondary = Color(0xFFA69D95);
+  static const coral = Color(0xFFFF7E6B);
+  static const coralLight = Color(0xFFFFEDE9);
+  static const mint = Color(0xFF48D38A);
+  static const mintLight = Color(0xFFE6F9F0);
+  static const sky = Color(0xFF5AB4FF);
+  static const skyLight = Color(0xFFEBF6FF);
+  static const lavender = Color(0xFFB590F8);
+  static const lavenderLight = Color(0xFFF4EEFF);
+
+  static const scaffoldBg = Color(0xFFFFF9F2);
+  static const cardSurface = Color(0xFFFFFFFF);
+  static const surfaceWarm = Color(0xFFFFF6ED);
+  static const modalSurface = Color(0xFFFFFFFF);
+
+  static const borderLight = Color(0xFFF4ECE2);
+  static const borderInput = Color(0xFFEDE2D4);
+  static const borderInputFocused = Color(0xFFFF9E44);
+
+  static const textHeadline = Color(0xFF332923);
+  static const textBody = Color(0xFF4A3E36);
+  static const textMuted = Color(0xFF9E9188);
+  static const textPlaceholder = Color(0xFFC7BCB3);
+
+  static const avatarNekoBg = Color(0xFFFFF1DF);
+  static const avatarPiggyBg = Color(0xFFFFEAE7);
+  static const avatarKumaBg = Color(0xFFF7ECE1);
+  static const avatarBobaBg = Color(0xFFEFE9FC);
+
+  static const darkScaffoldBg = Color(0xFF1C1917);
+  static const darkSurface = Color(0xFF292420);
+  static const darkSurfaceWarm = Color(0xFF36302B);
+  static const darkBorder = Color(0xFF423B35);
+  static const darkTextPrimary = Color(0xFFFAF4EE);
+  static const darkTextMuted = Color(0xFFA89E96);
 }
 
 @immutable
@@ -39,21 +54,21 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   });
 
   static const light = AppSemanticColors(
-    income: Color(0xFF187344),
-    incomeContainer: AppColors.incomeBg,
-    expense: Color(0xFFBA3030),
-    expenseContainer: AppColors.expenseBg,
-    info: Color(0xFF245EA8),
-    infoContainer: AppColors.infoBg,
+    income: AppColors.mint,
+    incomeContainer: AppColors.mintLight,
+    expense: AppColors.coral,
+    expenseContainer: AppColors.coralLight,
+    info: AppColors.sky,
+    infoContainer: AppColors.skyLight,
   );
 
   static const dark = AppSemanticColors(
-    income: Color(0xFF65DB97),
-    incomeContainer: Color(0xFF183A28),
-    expense: Color(0xFFFFB4AB),
-    expenseContainer: Color(0xFF4B2424),
-    info: Color(0xFFA6C8FF),
-    infoContainer: Color(0xFF20334D),
+    income: AppColors.mint,
+    incomeContainer: AppColors.darkSurfaceWarm,
+    expense: AppColors.coral,
+    expenseContainer: AppColors.darkSurfaceWarm,
+    info: AppColors.sky,
+    infoContainer: AppColors.darkSurfaceWarm,
   );
 
   final Color income;

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:expense_tracker_app/app/providers.dart';
+import 'package:expense_tracker_app/app/theme/app_colors.dart';
 import 'package:expense_tracker_app/app/theme/app_theme.dart';
 import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
 import 'package:expense_tracker_app/features/profiles/presentation/profile_avatar.dart';
@@ -90,6 +91,7 @@ void main() {
       testWidgets('profile form adapts to $brightness at $size, scale $scale', (
         tester,
       ) async {
+        final isDark = brightness == Brightness.dark;
         final repository = _RecordingRepository();
         await _openForm(
           tester,
@@ -106,6 +108,37 @@ void main() {
           find.byType(Dialog),
           size.width < 600 ? findsNothing : findsOneWidget,
         );
+        final nekoStyle = tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('avatar-neko')))
+            .style!;
+        final nekoBackground = nekoStyle.backgroundColor!.resolve({});
+        expect(
+          nekoBackground,
+          isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle,
+        );
+        final nekoBorder = nekoStyle.side!.resolve({})!;
+        expect(nekoBorder.color, AppColors.primary);
+        expect(nekoBorder.width, 2);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('avatar-neko')),
+            matching: find.byIcon(Icons.check),
+          ),
+          findsOneWidget,
+        );
+        final piggyStyle = tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('avatar-piggy')))
+            .style!;
+        expect(
+          piggyStyle.backgroundColor!.resolve({}),
+          isDark ? AppColors.darkSurfaceWarm : AppColors.avatarPiggyBg,
+        );
+        final selectedChip = tester.widget<ChoiceChip>(
+          find.byKey(const ValueKey('quick-currency-USD')),
+        );
+        expect(selectedChip.selectedColor, AppColors.primary);
+        expect(selectedChip.checkmarkColor, Colors.white);
+        expect(selectedChip.labelStyle?.color, Colors.white);
         await tapVisible(tester, find.byKey(const ValueKey('avatar-piggy')));
         await tester.ensureVisible(find.byType(TextFormField));
         await tester.enterText(find.byType(TextFormField), 'Travel');

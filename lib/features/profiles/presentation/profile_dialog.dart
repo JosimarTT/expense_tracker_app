@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../app/theme/app_colors.dart';
 import '../../../core/money/currency.dart';
 import '../../../core/money/money_format.dart';
 import '../domain/profile.dart';
@@ -180,27 +181,52 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.all(12),
                           backgroundColor: avatar == _avatar
-                              ? colors.primaryContainer
-                              : colors.surfaceContainerLow,
+                              ? (theme.brightness == Brightness.dark
+                                    ? AppColors.darkSurfaceWarm
+                                    : AppColors.primarySubtle)
+                              : avatar.backgroundColor(theme.brightness),
                           foregroundColor: avatar == _avatar
-                              ? colors.onPrimaryContainer
+                              ? (theme.brightness == Brightness.dark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.textHeadline)
                               : colors.onSurface,
                           side: BorderSide(
                             color: avatar == _avatar
-                                ? colors.onPrimaryContainer
-                                : colors.outlineVariant,
-                            width: avatar == _avatar ? 2 : 1,
+                                ? AppColors.primary
+                                : (theme.brightness == Brightness.dark
+                                      ? AppColors.darkBorder
+                                      : AppColors.borderLight),
+                            width: avatar == _avatar ? 2 : 1.5,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            ProfileAvatarIcon(avatar: avatar),
-                            const SizedBox(height: 4),
-                            Text(avatar.label),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ProfileAvatarIcon(avatar: avatar),
+                                const SizedBox(height: 4),
+                                Text(avatar.label),
+                              ],
+                            ),
+                            if (avatar == _avatar)
+                              Positioned(
+                                top: -18,
+                                right: -18,
+                                child: CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: AppColors.primary,
+                                  child: const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
