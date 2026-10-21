@@ -222,7 +222,7 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                     index < ProfileAvatar.values.length;
                     index++
                   ) ...[
-                    if (index > 0) const SizedBox(width: 8),
+                    if (index > 0) const SizedBox(width: 12),
                     Expanded(
                       child: _buildAvatarButton(
                         ProfileAvatar.values[index],
@@ -311,12 +311,14 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                 decoration: BoxDecoration(
                   color: theme.brightness == Brightness.dark
                       ? colors.surfaceContainerLow
-                      : AppColors.primarySubtle,
+                      : AppColors.securityNoticeBackground.withValues(
+                          alpha: 0.7,
+                        ),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: theme.brightness == Brightness.dark
                         ? AppColors.darkBorder
-                        : AppColors.primaryLight,
+                        : AppColors.securityNoticeBorder.withValues(alpha: 0.7),
                   ),
                 ),
                 padding: const EdgeInsets.all(14),
@@ -326,7 +328,7 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
                     const Icon(
                       Icons.lock_outline,
                       size: 18,
-                      color: AppColors.primaryDark,
+                      color: AppColors.securityNoticeForeground,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -397,51 +399,66 @@ class _ProfileDialogState extends ConsumerState<ProfileDialog> {
     final isDark = theme.brightness == Brightness.dark;
     return Semantics(
       selected: isSelected,
-      child: OutlinedButton(
-        key: ValueKey('avatar-${avatar.name}'),
-        onPressed: _saving ? null : () => setState(() => _avatar = avatar),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 76),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-          backgroundColor: isSelected
-              ? (isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle)
-              : (isDark ? AppColors.darkSurface : colors.surfaceContainerLow),
-          foregroundColor: isSelected
-              ? (isDark ? AppColors.darkTextPrimary : AppColors.primaryDark)
-              : colors.onSurfaceVariant,
-          side: BorderSide(
-            color: isSelected
-                ? AppColors.primary
-                : (isDark ? AppColors.darkBorder : AppColors.borderLight),
-            width: isSelected ? 2 : 1,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ProfileAvatarIcon(avatar: avatar),
-                const SizedBox(height: 4),
-                Text(avatar.label, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-            if (isSelected)
-              Positioned(
-                top: -18,
-                right: -18,
-                child: CircleAvatar(
-                  radius: 10,
-                  backgroundColor: AppColors.primary,
-                  child: const Icon(Icons.check, size: 12, color: Colors.white),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              key: ValueKey('avatar-${avatar.name}'),
+              onPressed: _saving
+                  ? null
+                  : () => setState(() => _avatar = avatar),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 76),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 10,
+                ),
+                backgroundColor: isSelected
+                    ? (isDark
+                          ? AppColors.darkSurfaceWarm
+                          : AppColors.primarySubtle)
+                    : (isDark
+                          ? AppColors.darkSurface
+                          : colors.surfaceContainerLow),
+                foregroundColor: isSelected
+                    ? (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.primaryDark)
+                    : colors.onSurfaceVariant,
+                side: BorderSide(
+                  color: isSelected
+                      ? AppColors.primary
+                      : (isDark ? AppColors.darkBorder : AppColors.borderLight),
+                  width: isSelected ? 2 : 1,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-          ],
-        ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ProfileAvatarIcon(avatar: avatar),
+                  const SizedBox(height: 4),
+                  Text(avatar.label, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+          if (isSelected)
+            const Positioned(
+              top: -5,
+              right: -5,
+              child: CircleAvatar(
+                key: ValueKey('avatar-selected-badge'),
+                radius: 10,
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.check, size: 12, color: Colors.white),
+              ),
+            ),
+        ],
       ),
     );
   }

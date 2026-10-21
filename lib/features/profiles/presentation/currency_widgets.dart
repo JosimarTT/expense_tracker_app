@@ -24,15 +24,25 @@ class CurrencyBadge extends StatelessWidget {
         height: 48,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceWarm : AppColors.coralLight,
+          color: isDark
+              ? AppColors.darkSurfaceWarm
+              : AppColors.currencyBadgeBackground,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? AppColors.darkBorder
+                : AppColors.currencyBadgeBorder,
+          ),
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             _currencySymbol(context, code),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: isDark ? AppColors.coralLight : AppColors.coral,
+              fontSize: 24,
+              color: isDark
+                  ? AppColors.coralLight
+                  : AppColors.currencyBadgeForeground,
             ),
           ),
         ),

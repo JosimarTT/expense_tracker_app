@@ -119,3 +119,17 @@ InputDecoration(
   - Border: `Border.all(color: AppColors.borderLight, width: 1.2)`.
   - Text: `AppColors.textMuted` or `AppColors.textBody` (`FontWeight.w600`).
   - Symbol: Soft primary tint (`#FFA959`).
+
+### D. Profile Currency Symbol Badge and Security Notice
+
+The profile-creation screen reference specifies component colors that are not part
+of the shared palette above. Keep these tokens scoped to these widgets instead of
+changing the app-wide semantic colors:
+
+* **Currency symbol badge:** `currencyBadgeBackground` `#FEE2E2` (Tailwind
+  red-100), `currencyBadgeBorder` `#FECACA` (red-200), and
+  `currencyBadgeForeground` `#DC2626` (red-600).
+* **Currency security notice:** use `securityNoticeBackground` `#FFFBEB`
+  (amber-50) as the background and `securityNoticeBorder` `#FDE68A` (amber-200)
+  as the border, both at 70% opacity over the sheet; use
+  `securityNoticeForeground` `#D97706` (amber-600) for the lock icon.

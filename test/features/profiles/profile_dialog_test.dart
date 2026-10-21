@@ -85,6 +85,15 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  test('profile currency and notice colors match the screen reference', () {
+    expect(AppColors.currencyBadgeBackground, const Color(0xFFFEE2E2));
+    expect(AppColors.currencyBadgeBorder, const Color(0xFFFECACA));
+    expect(AppColors.currencyBadgeForeground, const Color(0xFFDC2626));
+    expect(AppColors.securityNoticeBackground, const Color(0xFFFFFBEB));
+    expect(AppColors.securityNoticeBorder, const Color(0xFFFDE68A));
+    expect(AppColors.securityNoticeForeground, const Color(0xFFD97706));
+  });
+
   for (final brightness in Brightness.values) {
     for (final (size, scale) in [
       (const Size(320, 568), 2.0),
@@ -146,10 +155,7 @@ void main() {
           );
         }
         expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('avatar-neko')),
-            matching: find.byIcon(Icons.check),
-          ),
+          find.byKey(const ValueKey('avatar-selected-badge')),
           findsOneWidget,
         );
         final currencyBadge = find.descendant(
@@ -161,7 +167,15 @@ void main() {
         );
         expect(
           (badgeContainer.decoration! as BoxDecoration).color,
-          isDark ? AppColors.darkSurfaceWarm : AppColors.coralLight,
+          isDark
+              ? AppColors.darkSurfaceWarm
+              : AppColors.currencyBadgeBackground,
+        );
+        expect(
+          ((badgeContainer.decoration! as BoxDecoration).border! as Border)
+              .top
+              .color,
+          isDark ? AppColors.darkBorder : AppColors.currencyBadgeBorder,
         );
         expect(
           tester
@@ -170,7 +184,7 @@ void main() {
               )
               .style!
               .color,
-          isDark ? AppColors.coralLight : AppColors.coral,
+          isDark ? AppColors.coralLight : AppColors.currencyBadgeForeground,
         );
         final piggyStyle = tester
             .widget<OutlinedButton>(find.byKey(const ValueKey('avatar-piggy')))
@@ -216,8 +230,37 @@ void main() {
                 as BoxDecoration;
         expect(
           noticeStyle.color,
-          isDark ? AppColors.darkSurfaceWarm : AppColors.primarySubtle,
+          isDark
+              ? AppColors.darkSurfaceWarm
+              : AppColors.securityNoticeBackground.withValues(alpha: 0.7),
         );
+        expect(
+          noticeStyle.border!.top.color,
+          isDark
+              ? AppColors.darkBorder
+              : AppColors.securityNoticeBorder.withValues(alpha: 0.7),
+        );
+        expect(
+          tester
+              .widget<Icon>(
+                find.descendant(
+                  of: find.byKey(const Key('currency-notice')),
+                  matching: find.byIcon(Icons.lock_outline),
+                ),
+              )
+              .color,
+          AppColors.securityNoticeForeground,
+        );
+        final avatarButton = find.byKey(const ValueKey('avatar-piggy'));
+        final checkCenter = tester.getCenter(
+          find.descendant(
+            of: find.byKey(const ValueKey('avatar-selected-badge')),
+            matching: find.byIcon(Icons.check),
+          ),
+        );
+        final avatarRect = tester.getRect(avatarButton);
+        expect(checkCenter.dx, closeTo(avatarRect.right, 1));
+        expect(checkCenter.dy, closeTo(avatarRect.top, 1));
         final createStyle = tester
             .widget<FilledButton>(find.widgetWithText(FilledButton, 'Create'))
             .style!;

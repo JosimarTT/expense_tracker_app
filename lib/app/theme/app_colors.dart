@@ -8,6 +8,12 @@ abstract final class AppColors {
 
   static const coral = Color(0xFFFF7E6B);
   static const coralLight = Color(0xFFFFEDE9);
+  static const currencyBadgeBackground = Color(0xFFFEE2E2);
+  static const currencyBadgeBorder = Color(0xFFFECACA);
+  static const currencyBadgeForeground = Color(0xFFDC2626);
+  static const securityNoticeBackground = Color(0xFFFFFBEB);
+  static const securityNoticeBorder = Color(0xFFFDE68A);
+  static const securityNoticeForeground = Color(0xFFD97706);
   static const mint = Color(0xFF48D38A);
   static const mintLight = Color(0xFFE6F9F0);
   static const sky = Color(0xFF5AB4FF);
