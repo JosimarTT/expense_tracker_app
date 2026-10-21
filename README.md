@@ -42,12 +42,14 @@ foreground/container pairs are available through the `AppSemanticColors` theme
 extension. Use those pairs for readable semantic labels; the brighter raw palette
 tokens are decorative accents, not body-text colors.
 
-The current Stitch palette in
-`design/stitch/vivid-flutter-color-palette-ui-fixes.md` is the source of truth.
+The [Expense Tracker Design System](design/stitch/vivid-flutter-color-palette-ui.md)
+is the source of truth for typography, exact colors and their usage, spacing,
+shapes, component states, and responsive layouts. It also records implementation
+gaps and unapproved accessibility proposals separately.
 `AppColors` maps its named tokens directly; light surfaces are warm vanilla and
 white, while dark surfaces use espresso neutrals. Inputs use the specified warm
-biscuit resting border and vivid orange focus border. Avatar cards use their
-individual pastel backgrounds, selected avatars use a subtle orange fill and a
+biscuit resting border and vivid orange focus border. Profile avatar cards share
+one unselected background, selected avatars use a subtle orange fill and a
 check badge, and selected currency chips use vivid orange with white foregrounds.
 Cards and dialogs use 24dp corners, sheets 32dp top corners, inputs 20dp corners,
 and primary buttons a 54dp minimum height.
@@ -73,7 +75,8 @@ Both the welcome action and the dashboard's add-profile action use
 `showProfileDialog`: a rounded bottom sheet below 600 logical pixels wide, or a
 constrained dialog on larger screens. The shared form scrolls around the keyboard
 and large text, offers Neko/Piggy/Kuma/Boba avatars, validates the name inline,
-and previews the name, avatar, and currency as they change. Popular-currency chips
+with a valid-name indicator and case-insensitive duplicate-name checks. It does
+not include an inner profile-preview card. Popular-currency chips
 supplement the existing searchable currency picker. Cancelling the picker retains
 the current choice; currency remains fixed after profile creation.
 
