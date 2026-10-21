@@ -50,6 +50,8 @@ void main() {
     'Records savings with categories and toggles automatic unused-money savings',
     (tester) async {
       await open(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+      await tester.pumpAndSettle();
       final toggle = find.byKey(const Key('automatic-unused-savings'));
       expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
       expect(
@@ -63,8 +65,7 @@ void main() {
       await tester.tap(toggle);
       await settle(tester);
       expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
-      await tester.scrollUntilVisible(find.text('Add transaction'), 200);
-      await tester.tap(find.text('Add transaction'));
+      await tester.tap(find.byKey(const Key('add-transaction')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Expense'));
       await tester.pumpAndSettle();
@@ -83,11 +84,13 @@ void main() {
       expect(transaction!.type, 'savings');
       expect(transaction.amountMinor, 5000);
       expect(transaction.categoryId, isNot(TransactionCategory.unusedMoneyId));
+      await tester.tap(find.byKey(const Key('dashboard-tab-0')));
+      await tester.pumpAndSettle();
       await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
       await tester.pumpAndSettle();
       expect(find.text(r'Savings: $50.00'), findsOneWidget);
-      expect(find.text(r'Expenses: $0.00'), findsOneWidget);
-      expect(find.text(r'Remaining to allocate: -$50.00'), findsOneWidget);
+      expect(find.text(r'-$0.00'), findsOneWidget);
+      expect(find.text(r'-$50.00'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
     },

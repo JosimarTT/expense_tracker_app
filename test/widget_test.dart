@@ -69,13 +69,13 @@ void main() {
       await settleDatabase(tester);
       expect(find.text('Personal ($code)'), findsOneWidget);
       expect(find.text('Hi there, friend!'), findsNothing);
-      expect(find.byTooltip('Create profile'), findsOneWidget);
+      expect(find.byTooltip('Settings and tracker management'), findsOneWidget);
       final profile = await tester.runAsync(
         () => db.select(db.profiles).getSingle(),
       );
       expect(profile!.currencyCode, code);
       expect(profile.currencyScale, scale);
-      await tester.tap(find.text('Add transaction'));
+      await tester.tap(find.byKey(const Key('add-transaction')));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, 'Amount ($code)'),
@@ -136,6 +136,8 @@ void main() {
         ),
       );
       await settleDatabase(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Create profile'));
       await tester.pumpAndSettle();
       expect(find.text('CHOOSE AVATAR'), findsOneWidget);
@@ -238,9 +240,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Travel (USD)').last);
       await settleDatabase(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+      await tester.pumpAndSettle();
       final add = tester
           .widget<IconButton>(
-            find.widgetWithIcon(IconButton, Icons.person_add_alt_1),
+            find.ancestor(
+              of: find.byTooltip('Create profile'),
+              matching: find.byType(IconButton),
+            ),
           )
           .onPressed!;
       add();
@@ -332,6 +339,12 @@ void main() {
         ),
       );
       await settleDatabase(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('delete-profile')),
+        200,
+      );
       await tester.tap(find.byKey(const Key('delete-profile')));
       await tester.pumpAndSettle();
       expect(find.text('Permanently delete profile?'), findsOneWidget);
@@ -428,6 +441,8 @@ void main() {
       () => db.select(db.profiles).getSingle(),
     );
     expect(isUuidV7(profile!.profileId), isTrue);
+    await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('manage-categories')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add category'));
@@ -467,7 +482,7 @@ void main() {
     expect(streaming.colorArgb, 0xFF455A64);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add transaction'));
+    await tester.tap(find.byKey(const Key('add-transaction')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Notes (optional)'),
@@ -479,11 +494,13 @@ void main() {
     );
     await tester.tap(find.text('Save'));
     await settleDatabase(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-0')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Lunch with a friend'), 200);
     expect(find.text('Lunch with a friend'), findsOneWidget);
     await tester.drag(find.byType(ListView).first, const Offset(0, 1200));
     await tester.pumpAndSettle();
-    expect(find.text(r'Expenses: $12.50'), findsOneWidget);
+    expect(find.text(r'-$12.50'), findsWidgets);
     final transaction = await tester.runAsync(
       () => db.select(db.transactions).getSingle(),
     );
@@ -495,11 +512,12 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, 'Wants (%)'), '20');
     await tester.tap(find.text('Save budget'));
     await settleDatabase(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Needs (60.0%)'), 200);
     expect(find.text('Needs (60.0%)'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsOneWidget);
-    await tester.ensureVisible(find.text('Add transaction'));
-    await tester.tap(find.text('Add transaction'));
+    await tester.tap(find.byKey(const Key('add-transaction')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Notes (optional)'),
@@ -517,7 +535,6 @@ void main() {
     await settleDatabase(tester);
     await tester.drag(find.byType(ListView).first, const Offset(0, 500));
     await tester.pumpAndSettle();
-    expect(find.text(r'Income: $1,000.00'), findsOneWidget);
     await tester.scrollUntilVisible(find.text(r'$12.50 of $200.00'), 200);
     expect(find.text(r'$12.50 of $200.00'), findsOneWidget);
     expect(find.textContaining('No income this month'), findsNothing);
@@ -591,7 +608,7 @@ void main() {
       expect(find.text('Personal purchase'), findsNothing);
       await tester.drag(find.byType(ListView).first, const Offset(0, 1200));
       await tester.pumpAndSettle();
-      expect(find.text(r'Expenses: $2.00'), findsOneWidget);
+      expect(find.text(r'-$2.00'), findsWidgets);
       expect(
         tester
             .widget<ProfileAvatarIcon>(

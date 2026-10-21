@@ -180,6 +180,8 @@ void main() {
         await tester.runAsync(() => db.select(db.transactions).get()),
         hasLength(3),
       );
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+      await tester.pumpAndSettle();
       expect(find.text('Scheduled transactions'), findsOneWidget);
       await tester.ensureVisible(find.text('Scheduled transactions'));
       await tester.tap(find.text('Scheduled transactions'));

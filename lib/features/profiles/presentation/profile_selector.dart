@@ -8,12 +8,14 @@ class ProfileSelector extends StatelessWidget {
     required this.profiles,
     required this.selected,
     required this.onSelected,
+    this.compact = false,
     super.key,
   });
 
   final List<LocalProfile> profiles;
   final LocalProfile selected;
   final ValueChanged<String> onSelected;
+  final bool compact;
 
   String _label(LocalProfile profile) =>
       '${profile.name} (${profile.currencyCode})';
@@ -25,7 +27,11 @@ class ProfileSelector extends StatelessWidget {
     isExpanded: true,
     itemHeight: null,
     decoration: InputDecoration(
-      labelText: 'Active profile',
+      labelText: compact ? null : 'Active profile',
+      fillColor: compact ? Theme.of(context).colorScheme.surface : null,
+      contentPadding: compact
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+          : null,
       prefixIcon: Padding(
         padding: const EdgeInsets.all(8),
         child: Semantics(

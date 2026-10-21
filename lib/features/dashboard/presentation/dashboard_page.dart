@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/providers.dart';
+import '../../../app/theme/app_colors.dart';
 import '../../../core/money/money_format.dart';
 import '../../budgets/domain/budget_calculator.dart';
 import '../../budgets/domain/entities/budget_rule.dart';
@@ -19,6 +20,7 @@ import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../../transactions/presentation/transaction_dialog.dart';
 import '../../schedules/presentation/schedule_processor.dart';
 import '../../schedules/presentation/schedules_page.dart';
+import 'dashboard_widgets.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -45,20 +47,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final profiles = ref.watch(profilesProvider);
-    final isWelcome = profiles.asData?.value.isEmpty ?? false;
     return Scaffold(
-      appBar: isWelcome
-          ? null
-          : AppBar(
-              title: const Text('Expense Tracker'),
-              actions: [
-                IconButton(
-                  onPressed: _creatingProfile ? null : _createProfile,
-                  tooltip: 'Create profile',
-                  icon: const Icon(Icons.person_add_alt_1),
-                ),
-              ],
-            ),
       body: profiles.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => _LoadError(
@@ -75,23 +64,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               items.first;
           return ScheduleProcessor(
             profiles: items,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ProfileSelector(
-                    profiles: items,
-                    selected: selected,
-                    onSelected: (id) => setState(() => _selectedId = id),
-                  ),
-                ),
-                Expanded(
-                  child: _ProfileDashboard(
-                    key: ValueKey(selected.id),
-                    profile: selected,
-                  ),
-                ),
-              ],
+            child: _ProfileDashboard(
+              key: ValueKey(selected.id),
+              profile: selected,
+              profiles: items,
+              onSelected: (id) => setState(() => _selectedId = id),
+              onCreateProfile: _creatingProfile ? null : _createProfile,
             ),
           );
         },
@@ -101,8 +79,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 }
 
 class _ProfileDashboard extends ConsumerStatefulWidget {
-  const _ProfileDashboard({required this.profile, super.key});
+  const _ProfileDashboard({
+    required this.profile,
+    required this.profiles,
+    required this.onSelected,
+    required this.onCreateProfile,
+    super.key,
+  });
   final LocalProfile profile;
+  final List<LocalProfile> profiles;
+  final ValueChanged<String> onSelected;
+  final VoidCallback? onCreateProfile;
 
   @override
   ConsumerState<_ProfileDashboard> createState() => _ProfileDashboardState();
@@ -112,6 +99,85 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   final _deleting = <String>{};
   bool _savingAutomatic = false;
+  int _tab = 0;
+  TransactionType? _filter;
+
+  Widget _header() {
+    final monthPicker = Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(28),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Previous month',
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => setState(
+              () => _month = DateTime(_month.year, _month.month - 1),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              DateFormat.yMMM().format(_month),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Next month',
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => setState(
+              () => _month = DateTime(_month.year, _month.month + 1),
+            ),
+          ),
+        ],
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final profilePicker = ProfileSelector(
+            compact: true,
+            profiles: widget.profiles,
+            selected: widget.profile,
+            onSelected: widget.onSelected,
+          );
+          final settings = IconButton.filledTonal(
+            tooltip: 'Settings and tracker management',
+            onPressed: () => setState(() => _tab = 3),
+            icon: const Icon(Icons.settings_outlined),
+          );
+          if (constraints.maxWidth < 350 ||
+              MediaQuery.textScalerOf(context).scale(16) > 22) {
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: profilePicker),
+                    const SizedBox(width: 8),
+                    settings,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                monthPicker,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: profilePicker),
+              const SizedBox(width: 8),
+              monthPicker,
+              const SizedBox(width: 4),
+              settings,
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Future<void> _setAutomaticSavings(bool value) async {
     setState(() => _savingAutomatic = true);
@@ -222,12 +288,18 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     }
     final start = _month.toUtc();
     final end = DateTime(_month.year, _month.month + 1).toUtc();
-    final monthly = transactions.requireValue
-        .where(
-          (row) =>
-              !row.occurredAt.isBefore(start) && row.occurredAt.isBefore(end),
-        )
-        .toList();
+    final monthly =
+        transactions.requireValue
+            .where(
+              (row) =>
+                  !row.occurredAt.isBefore(start) &&
+                  row.occurredAt.isBefore(end),
+            )
+            .toList()
+          ..sort((a, b) {
+            final byDate = b.occurredAt.compareTo(a.occurredAt);
+            return byDate != 0 ? byDate : a.id.compareTo(b.id);
+          });
     final rule = budgets.requireValue
         .where(
           (budget) => budget.periodStart == start && budget.periodEnd == end,
@@ -272,125 +344,163 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       for (final category in categories.requireValue)
         category.id: category.name,
     };
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: OutlinedButton.icon(
-            key: const Key('delete-profile'),
-            onPressed: _deleteProfile,
-            icon: const Icon(Icons.delete_forever_outlined),
-            label: const Text('Delete Profile'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-              side: BorderSide(color: Theme.of(context).colorScheme.error),
+    final canAdd = categories.requireValue.any(
+      (category) => !category.isArchived && !category.isSystem,
+    );
+    void addTransaction() => showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => TransactionDialog(
+        profile: widget.profile,
+        categories: categories.requireValue,
+      ),
+    );
+    void editBudget() => showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => BudgetDialog(
+        profileId: id,
+        month: _month,
+        categories: categories.requireValue,
+        existing: rule,
+      ),
+    );
+    final budgetLabel = rule == null
+        ? 'Set monthly budget'
+        : 'Edit monthly budget';
+    final visible =
+        (_tab == 1 && _filter != null
+                ? monthly.where((row) => row.type == _filter)
+                : monthly)
+            .take(_tab == 0 ? 5 : monthly.length)
+            .toList();
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final content = <Widget>[
+      if ((_tab == 0 || _tab == 2) && summary == null)
+        const Text(
+          'Monthly totals exceed the supported range. Edit or delete an entry to calculate totals.',
+        ),
+      if (_tab == 0) ...[
+        if (summary != null)
+          DashboardSummaryCard(
+            summary: summary,
+            money: _money,
+            currencyCode: widget.profile.currencyCode,
+            isEmpty: monthly.isEmpty,
+            incomeCount: monthly
+                .where((row) => row.type == TransactionType.income)
+                .length,
+            expenseCount: monthly
+                .where((row) => row.type == TransactionType.expense)
+                .length,
+            savingsTarget: summary.buckets
+                .where((bucket) => bucket.bucket.id == 'savings')
+                .firstOrNull
+                ?.targetMinor,
+            budgetLabel: budgetLabel,
+            onBudget: canEditBudget ? editBudget : null,
+          ),
+        if (monthly.isNotEmpty && summary != null) ...[
+          const SizedBox(height: 20),
+          Card(
+            color: summary.remainingMinor < 0
+                ? semantic.expenseContainer
+                : semantic.incomeContainer,
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    summary.remainingMinor < 0
+                        ? Icons.info_outline
+                        : Icons.spa_outlined,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      summary.remainingMinor < 0
+                          ? 'Expenses and savings exceed this month\'s income. Review your entries to stay on track.'
+                          : 'Keep your money intentional. You have ${_money(summary.remainingMinor)} left to allocate this month.',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              tooltip: 'Previous month',
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () => setState(
-                () => _month = DateTime(_month.year, _month.month - 1),
-              ),
-            ),
-            Text(
-              DateFormat.yMMMM().format(_month),
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            IconButton(
-              tooltip: 'Next month',
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => setState(
-                () => _month = DateTime(_month.year, _month.month + 1),
-              ),
-            ),
-          ],
-        ),
-        if (summary == null)
-          const Text(
-            'Monthly totals exceed the supported range. Edit or delete an entry to calculate totals.',
-          )
-        else ...[
-          Text('Income: ${_money(summary.incomeMinor)}'),
-          Text('Expenses: ${_money(summary.expenseMinor)}'),
-          Text('Savings: ${_money(summary.savingsMinor)}'),
-          Text('Remaining to allocate: ${_money(summary.remainingMinor)}'),
         ],
-        SwitchListTile(
-          key: const Key('automatic-unused-savings'),
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Automatically save unused money'),
-          subtitle: const Text(
-            'Starting this month, record any money left over as savings when you next open the app after month-end. '
-            'No money is moved between accounts.',
-          ),
-          value: widget.profile.autoSavings,
-          onChanged: _savingAutomatic ? null : _setAutomaticSavings,
+        const SizedBox(height: 20),
+      ],
+      if (_tab == 3) ...[
+        Text(
+          'Profile & settings',
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 16),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SchedulesPage(profile: widget.profile),
-                ),
-              ),
-              icon: const Icon(Icons.event_repeat),
-              label: const Text('Scheduled transactions'),
+        ListTile(
+          leading: const Icon(Icons.person_add_alt_1),
+          title: const Text('Create profile'),
+          trailing: IconButton(
+            tooltip: 'Create profile',
+            onPressed: widget.onCreateProfile,
+            icon: const Icon(Icons.person_add_alt_1),
+          ),
+          onTap: widget.onCreateProfile,
+        ),
+        ListTile(
+          key: const Key('manage-categories'),
+          leading: const Icon(Icons.category_outlined),
+          title: const Text('Manage categories'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => CategoryManagerDialog(profileId: id),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.event_repeat),
+          title: const Text('Scheduled transactions'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SchedulesPage(profile: widget.profile),
             ),
-            OutlinedButton.icon(
-              key: const Key('manage-categories'),
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (_) => CategoryManagerDialog(profileId: id),
-              ),
-              icon: const Icon(Icons.category_outlined),
-              label: const Text('Manage categories'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: SwitchListTile(
+            key: const Key('automatic-unused-savings'),
+            title: const Text('Automatically save unused money'),
+            subtitle: const Text(
+              'Starting this month, record any money left over as savings when you next open the app after month-end. '
+              'No money is moved between accounts.',
             ),
-            FilledButton.icon(
-              onPressed:
-                  !categories.requireValue.any(
-                    (category) => !category.isArchived && !category.isSystem,
-                  )
-                  ? null
-                  : () => showDialog<void>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => TransactionDialog(
-                        profile: widget.profile,
-                        categories: categories.requireValue,
-                      ),
-                    ),
-              icon: const Icon(Icons.add),
-              label: const Text('Add transaction'),
-            ),
-            OutlinedButton(
-              onPressed: !canEditBudget
-                  ? null
-                  : () => showDialog<void>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => BudgetDialog(
-                        profileId: id,
-                        month: _month,
-                        categories: categories.requireValue,
-                        existing: rule,
-                      ),
-                    ),
-              child: Text(
-                rule == null ? 'Set monthly budget' : 'Edit monthly budget',
-              ),
-            ),
-          ],
+            value: widget.profile.autoSavings,
+            onChanged: _savingAutomatic ? null : _setAutomaticSavings,
+          ),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          key: const Key('delete-profile'),
+          onPressed: _deleteProfile,
+          icon: const Icon(Icons.delete_forever_outlined),
+          label: const Text('Delete Profile'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+            side: BorderSide(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+      ],
+      if (_tab == 2) ...[
+        Text(
+          'Monthly budget',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        TextButton(
+          onPressed: canEditBudget ? editBudget : null,
+          child: Text(budgetLabel),
         ),
         const SizedBox(height: 16),
         if (rule == null)
@@ -447,76 +557,169 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           const Text(
             'This rule has custom buckets. The current editor supports Needs/Wants/Savings only and will not overwrite it.',
           ),
-        const SizedBox(height: 16),
-        Text('Transactions', style: Theme.of(context).textTheme.titleLarge),
-        if (monthly.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('No transactions in this month.'),
-          ),
-        for (final transaction in monthly)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CategoryAvatar(
-              colorArgb:
-                  categories.requireValue
-                      .where(
-                        (category) => category.id == transaction.categoryId,
-                      )
-                      .firstOrNull
-                      ?.colorArgb ??
-                  0xFF455A64,
-              iconKey:
-                  categories.requireValue
-                      .where(
-                        (category) => category.id == transaction.categoryId,
-                      )
-                      .firstOrNull
-                      ?.iconKey ??
-                  'category',
-            ),
-            title: Text(
-              transaction.notes.isEmpty
-                  ? names[transaction.categoryId] ?? transaction.categoryId
-                  : transaction.notes,
-            ),
-            subtitle: Text(
-              '${names[transaction.categoryId] ?? transaction.categoryId} - ${DateFormat.yMMMd().format(transaction.occurredAt.toLocal())}'
-              '${transaction.savingsMonth == null ? '' : ' - Automatic; edit source transactions to recalculate'}',
-            ),
-            onTap:
-                _deleting.contains(transaction.id) ||
-                    transaction.savingsMonth != null
-                ? null
-                : () => showDialog<void>(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (_) => TransactionDialog(
-                      profile: widget.profile,
-                      categories: categories.requireValue,
-                      existing: transaction,
-                    ),
-                  ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${transaction.type == TransactionType.income ? '+' : '-'}${_money(transaction.amountMinor)}',
-                ),
-                IconButton(
-                  tooltip:
-                      'Delete ${transaction.notes.isEmpty ? names[transaction.categoryId] ?? transaction.categoryId : transaction.notes}',
-                  onPressed:
-                      _deleting.contains(transaction.id) ||
-                          transaction.savingsMonth != null
-                      ? null
-                      : () => _delete(transaction),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-          ),
       ],
+      if (_tab == 0 || _tab == 1) ...[
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _tab == 0 && monthly.isNotEmpty
+                    ? 'Recent transactions'
+                    : 'Transactions',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            Chip(label: Text('${monthly.length}')),
+            if (_tab == 0 && monthly.isNotEmpty)
+              TextButton(
+                onPressed: () => setState(() => _tab = 1),
+                child: const Text('View all'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_tab == 1) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final type in [null, ...TransactionType.values])
+                ChoiceChip(
+                  label: Text(type?.label ?? 'All'),
+                  selected: _filter == type,
+                  onSelected: (_) => setState(() => _filter = type),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (monthly.isEmpty)
+          DashboardEmptyState(
+            month: _month,
+            onAdd: canAdd ? addTransaction : null,
+          ),
+        if (monthly.isNotEmpty && visible.isEmpty)
+          const Text('No transactions match this type.'),
+        for (var index = 0; index < visible.length; index++) ...[
+          if (index == 0 ||
+              !DateUtils.isSameDay(
+                visible[index - 1].occurredAt.toLocal(),
+                visible[index].occurredAt.toLocal(),
+              ))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              child: Text(
+                DateFormat.yMMMEd().format(visible[index].occurredAt.toLocal()),
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          _transactionCard(visible[index], categories.requireValue, names),
+        ],
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.all(12),
+          child: Text(
+            'Keeping your money calm, intentional, and friendly.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    ];
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _header(),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: ListView(
+                    key: ValueKey('dashboard-content-$_tab'),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    children: content,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: DashboardBottomBar(
+        selected: _tab,
+        onSelected: (value) => setState(() => _tab = value),
+        onAdd: canAdd ? addTransaction : null,
+      ),
+    );
+  }
+
+  Widget _transactionCard(
+    FinancialTransaction transaction,
+    List<TransactionCategory> categories,
+    Map<String, String> names,
+  ) {
+    final category = categories
+        .where((row) => row.id == transaction.categoryId)
+        .firstOrNull;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final color = switch (transaction.type) {
+      TransactionType.income => semantic.income,
+      TransactionType.expense => semantic.expense,
+      TransactionType.savings => semantic.info,
+    };
+    final title = transaction.notes.isEmpty
+        ? names[transaction.categoryId] ?? transaction.categoryId
+        : transaction.notes;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        leading: CategoryAvatar(
+          colorArgb: category?.colorArgb ?? 0xFF455A64,
+          iconKey: category?.iconKey ?? 'category',
+        ),
+        title: Text(title),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${names[transaction.categoryId] ?? transaction.categoryId} - ${DateFormat.jm().format(transaction.occurredAt.toLocal())}',
+            ),
+            Text(
+              '${transaction.type == TransactionType.income ? '+' : '-'}${_money(transaction.amountMinor)}',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: color),
+            ),
+            if (transaction.savingsMonth != null)
+              const Text('Automatic; edit source transactions to recalculate'),
+          ],
+        ),
+        onTap:
+            _deleting.contains(transaction.id) ||
+                transaction.savingsMonth != null
+            ? null
+            : () => showDialog<void>(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => TransactionDialog(
+                  profile: widget.profile,
+                  categories: categories,
+                  existing: transaction,
+                ),
+              ),
+        trailing: IconButton(
+          tooltip:
+              'Delete ${transaction.notes.isEmpty ? names[transaction.categoryId] ?? transaction.categoryId : transaction.notes}',
+          onPressed:
+              _deleting.contains(transaction.id) ||
+                  transaction.savingsMonth != null
+              ? null
+              : () => _delete(transaction),
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ),
     );
   }
 }
