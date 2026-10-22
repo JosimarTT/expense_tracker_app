@@ -23,14 +23,14 @@ class DashboardSummaryCard extends StatelessWidget {
       _SummaryMetric(
         label: 'Expenses',
         amount: '-${money(summary.expenseMinor)}',
-        icon: Icons.arrow_outward,
+        icon: Icons.call_made_rounded,
         background: semantic.expenseContainer,
         accent: semantic.onExpenseContainer,
       ),
       _SummaryMetric(
         label: 'Income',
         amount: '+${money(summary.incomeMinor)}',
-        icon: Icons.south_west,
+        icon: Icons.call_received_rounded,
         background: semantic.incomeContainer,
         accent: semantic.onIncomeContainer,
       ),
@@ -88,7 +88,7 @@ class _SummaryMetric extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: accent, size: 18),
+              Icon(icon, color: accent, size: 24),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(

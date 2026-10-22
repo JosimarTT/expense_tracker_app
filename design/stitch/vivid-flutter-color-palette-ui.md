@@ -324,6 +324,8 @@ fonts do not replace this document's tokens or imply seeded user data.
 - Summary-card direction arrows sit immediately before the Expenses/Income
   labels in one compact row, with the amount below. Arrows indicate money
   direction, not a comparison or trend, and do not repeat the accessible label.
+  Use 24px rounded Material call-made/call-received arrows for stronger visual
+  weight without changing the card padding or semantic colors.
 - Summary-card label, amount, and arrow share `onIncomeContainer` or
   `onExpenseContainer`. These explicit foregrounds preserve semantic hues and
   provide at least 4.5:1 contrast against their containers in both themes

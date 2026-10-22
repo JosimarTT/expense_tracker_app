@@ -124,8 +124,8 @@ void main() {
   ) async {
     await open(tester);
     for (final (label, icon, amount) in [
-      ('Expenses', Icons.arrow_outward, r'-$0.00'),
-      ('Income', Icons.south_west, r'+$0.00'),
+      ('Expenses', Icons.call_made_rounded, r'-$0.00'),
+      ('Income', Icons.call_received_rounded, r'+$0.00'),
     ]) {
       final card = find.byKey(ValueKey('summary-${label.toLowerCase()}'));
       final arrow = find.descendant(of: card, matching: find.byIcon(icon));
@@ -141,6 +141,7 @@ void main() {
         greaterThan(tester.getRect(title).bottom),
       );
       expect(tester.widget<Icon>(arrow).semanticLabel, isNull);
+      expect(tester.widget<Icon>(arrow).size, 24);
     }
     await close(tester);
   });
@@ -787,8 +788,8 @@ void main() {
             tester.element(find.byType(DashboardSummaryCard)),
           ).extension<AppSemanticColors>()!;
           for (final (label, foreground, icon) in [
-            ('Expenses', semantic.onExpenseContainer, Icons.arrow_outward),
-            ('Income', semantic.onIncomeContainer, Icons.south_west),
+            ('Expenses', semantic.onExpenseContainer, Icons.call_made_rounded),
+            ('Income', semantic.onIncomeContainer, Icons.call_received_rounded),
           ]) {
             final card = find.byKey(ValueKey('summary-${label.toLowerCase()}'));
             final texts = tester.widgetList<Text>(
