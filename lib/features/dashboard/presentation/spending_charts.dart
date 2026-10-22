@@ -13,6 +13,8 @@ class SpendingOverview extends StatelessWidget {
     required this.categories,
     required this.money,
     this.title = 'Spending overview',
+    this.compact = false,
+    this.onShowAll,
     super.key,
   });
 
@@ -20,15 +22,29 @@ class SpendingOverview extends StatelessWidget {
   final List<TransactionCategory> categories;
   final String Function(BigInt) money;
   final String title;
+  final bool compact;
+  final VoidCallback? onShowAll;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final entries = analytics.categoryMinor.entries.toList()
+    final sorted = analytics.categoryMinor.entries.toList()
       ..sort((a, b) {
         final amount = b.value.compareTo(a.value);
         return amount != 0 ? amount : a.key.compareTo(b.key);
       });
+    final grouped = compact && sorted.length > 5;
+    final entries = <MapEntry<String?, BigInt>>[
+      for (final entry in grouped ? sorted.take(4) : sorted)
+        MapEntry(entry.key, entry.value),
+      if (grouped)
+        MapEntry(
+          null,
+          sorted
+              .skip(4)
+              .fold(BigInt.zero, (total, entry) => total + entry.value),
+        ),
+    ];
     final names = {
       for (final category in categories) category.id: category.name,
     };
@@ -39,43 +55,138 @@ class SpendingOverview extends StatelessWidget {
       AppColors.mint,
       AppColors.primary,
     ];
-    final legend = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var index = 0; index < entries.length; index++)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    String name(MapEntry<String?, BigInt> entry) =>
+        entry.key == null ? 'Other' : names[entry.key] ?? entry.key!;
+    Color color(int index) => entries[index].key == null
+        ? (theme.brightness == Brightness.dark
+              ? AppColors.darkTextMuted
+              : AppColors.textMuted)
+        : accents[index % accents.length];
+    final otherDescription = grouped
+        ? 'Other: ${sorted.length - 4} categories. '
+              '${sorted.skip(4).map((entry) => names[entry.key] ?? entry.key).join(', ')}'
+        : '';
+    final legendStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurface,
+    );
+    double textWidth(String text) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: legendStyle),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    final percentageWidth = textWidth('100%') + 4;
+    final amountWidth = entries.fold<double>(0, (width, entry) {
+      final measured = textWidth(money(entry.value));
+      return measured > width ? measured : width;
+    });
+    final legend = LayoutBuilder(
+      builder: (context, constraints) => Table(
+        columnWidths: {
+          0: const FlexColumnWidth(),
+          1: FixedColumnWidth(
+            (amountWidth + 8).clamp(
+              0,
+              (constraints.maxWidth - percentageWidth) * 0.65,
+            ),
+          ),
+          2: FixedColumnWidth(percentageWidth),
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          for (var index = 0; index < entries.length; index++)
+            TableRow(
               children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    color: accents[index % accents.length],
-                    borderRadius: BorderRadius.circular(4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color(index),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: InkWell(
+                          onTap: entries[index].key == null ? onShowAll : null,
+                          child: Tooltip(
+                            message: entries[index].key == null
+                                ? otherDescription
+                                : name(entries[index]),
+                            excludeFromSemantics: true,
+                            triggerMode: entries[index].key == null
+                                ? TooltipTriggerMode.longPress
+                                : TooltipTriggerMode.tap,
+                            child: Text(
+                              name(entries[index]),
+                              semanticsLabel: entries[index].key == null
+                                  ? '$otherDescription. Open Stats for the full breakdown.'
+                                  : null,
+                              key: ValueKey(
+                                'legend-category-${entries[index].key}',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.left,
+                              style: legendStyle,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
                   child: Text(
-                    '${names[entries[index].key] ?? entries[index].key}  '
-                    '${money(entries[index].value)}  '
-                    '${(entries[index].value / analytics.expenseMinor * 100).toStringAsFixed(1)}%',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                    ),
+                    money(entries[index].value),
+                    key: ValueKey('legend-amount-${entries[index].key}'),
+                    textAlign: TextAlign.center,
+                    style: legendStyle,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    '${(entries[index].value / analytics.expenseMinor * 100).round()}%',
+                    key: ValueKey('legend-percentage-${entries[index].key}'),
+                    textAlign: TextAlign.right,
+                    style: legendStyle,
                   ),
                 ),
               ],
             ),
-          ),
-      ],
+        ],
+      ),
     );
+    final chartSize = compact ? 112.0 : 140.0;
+    final centerRadius = compact ? 34.0 : 44.0;
+    final centerWidth = compact ? 60.0 : 80.0;
+    final totalStyle = theme.textTheme.labelLarge;
+    final totalPainter = TextPainter(
+      text: TextSpan(text: money(analytics.expenseMinor), style: totalStyle),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final totalFits =
+        totalPainter.width <= centerWidth &&
+        MediaQuery.textScalerOf(context).scale(16) <= 20;
+    totalPainter.dispose();
     final chart = SizedBox(
-      height: 140,
-      width: 140,
+      height: chartSize,
+      width: chartSize,
       child: Semantics(
         container: true,
         label:
@@ -87,7 +198,7 @@ class SpendingOverview extends StatelessWidget {
               PieChart(
                 duration: Duration.zero,
                 PieChartData(
-                  centerSpaceRadius: 44,
+                  centerSpaceRadius: centerRadius,
                   sectionsSpace: 2,
                   pieTouchData: PieTouchData(enabled: false),
                   sections: [
@@ -95,24 +206,23 @@ class SpendingOverview extends StatelessWidget {
                       PieChartSectionData(
                         value:
                             entries[index].value / analytics.expenseMinor * 100,
-                        color: accents[index % accents.length],
-                        radius: 24,
+                        color: color(index),
+                        radius: compact ? 20 : 24,
                         showTitle: false,
                       ),
                   ],
                 ),
               ),
               SizedBox(
-                width: 80,
+                width: centerWidth,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (money(analytics.expenseMinor).length <= 12 &&
-                        MediaQuery.textScalerOf(context).scale(16) <= 20)
+                    if (totalFits)
                       Text(
                         money(analytics.expenseMinor),
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.labelLarge,
+                        style: totalStyle,
                       ),
                     const Text('Total', textAlign: TextAlign.center),
                   ],
@@ -132,8 +242,9 @@ class SpendingOverview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: theme.textTheme.titleMedium),
-            Text(DateFormat.yMMMM().format(analytics.month)),
-            Text('Total expenses: ${money(analytics.expenseMinor)}'),
+            if (!compact) Text(DateFormat.yMMMM().format(analytics.month)),
+            if (!compact || !totalFits || entries.isEmpty)
+              Text('Total expenses: ${money(analytics.expenseMinor)}'),
             const SizedBox(height: 16),
             if (entries.isEmpty)
               const Padding(
@@ -145,7 +256,13 @@ class SpendingOverview extends StatelessWidget {
             else
               LayoutBuilder(
                 builder: (context, constraints) {
-                  if (constraints.maxWidth < 300 ||
+                  if (constraints.maxWidth <
+                          chartSize +
+                              12 +
+                              (compact ? 48 : 100) +
+                              amountWidth +
+                              8 +
+                              percentageWidth ||
                       MediaQuery.textScalerOf(context).scale(16) > 22) {
                     return Column(
                       children: [
@@ -159,7 +276,7 @@ class SpendingOverview extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       chart,
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(child: legend),
                     ],
                   );

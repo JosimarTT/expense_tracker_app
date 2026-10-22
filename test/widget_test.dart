@@ -69,7 +69,7 @@ void main() {
       await settleDatabase(tester);
       expect(find.text('Personal ($code)'), findsOneWidget);
       expect(find.text('Hi there, friend!'), findsNothing);
-      expect(find.byTooltip('Settings and tracker management'), findsOneWidget);
+      expect(find.byTooltip('Settings and tracker management'), findsNothing);
       final profile = await tester.runAsync(
         () => db.select(db.profiles).getSingle(),
       );
@@ -505,7 +505,9 @@ void main() {
       () => db.select(db.transactions).getSingle(),
     );
     expect(isUuidV7(transaction!.transactionId), isTrue);
-    await tester.ensureVisible(find.text('Set monthly budget'));
+    await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Set monthly budget'), 200);
     await tester.tap(find.text('Set monthly budget'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Needs (%)'), '60');

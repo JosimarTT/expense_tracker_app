@@ -9,17 +9,11 @@ class DashboardSummaryCard extends StatelessWidget {
   const DashboardSummaryCard({
     required this.summary,
     required this.money,
-    required this.currencyCode,
-    required this.onBudget,
-    required this.budgetLabel,
     super.key,
   });
 
   final BudgetSummary summary;
   final String Function(int) money;
-  final String currencyCode;
-  final VoidCallback? onBudget;
-  final String budgetLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -31,14 +25,14 @@ class DashboardSummaryCard extends StatelessWidget {
         amount: '-${money(summary.expenseMinor)}',
         icon: Icons.arrow_outward,
         background: semantic.expenseContainer,
-        accent: semantic.expense,
+        accent: semantic.onExpenseContainer,
       ),
       _SummaryMetric(
         label: 'Income',
         amount: '+${money(summary.incomeMinor)}',
         icon: Icons.south_west,
         background: semantic.incomeContainer,
-        accent: semantic.income,
+        accent: semantic.onIncomeContainer,
       ),
     ];
     return Column(
@@ -62,30 +56,6 @@ class DashboardSummaryCard extends StatelessWidget {
               ],
             );
           },
-        ),
-        const SizedBox(height: 12),
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Remaining to allocate ($currencyCode)',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                Text(
-                  money(summary.remainingMinor),
-                  key: const Key('remaining-amount'),
-                  style: theme.textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text('Savings: ${money(summary.savingsMinor)}'),
-                TextButton(onPressed: onBudget, child: Text(budgetLabel)),
-              ],
-            ),
-          ),
         ),
       ],
     );
@@ -118,13 +88,23 @@ class _SummaryMetric extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(label, style: Theme.of(context).textTheme.titleMedium),
+              Icon(icon, color: accent, size: 18),
               const SizedBox(width: 4),
-              Icon(icon, color: accent, size: 24, semanticLabel: label),
+              Flexible(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(color: accent),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(amount, style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            amount,
+            style: Theme.of(context).textTheme.headlineMedium
+                ?.copyWith(color: accent),
+          ),
         ],
       ),
     ),

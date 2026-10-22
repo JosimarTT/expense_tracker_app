@@ -8,6 +8,7 @@ abstract final class AppColors {
 
   static const coral = Color(0xFFFF7E6B);
   static const coralLight = Color(0xFFFFEDE9);
+  static const coralForeground = Color(0xFFA63D30);
   static const currencyBadgeBackground = Color(0xFFFEE2E2);
   static const currencyBadgeBorder = Color(0xFFFECACA);
   static const currencyBadgeForeground = Color(0xFFDC2626);
@@ -16,6 +17,7 @@ abstract final class AppColors {
   static const securityNoticeForeground = Color(0xFFD97706);
   static const mint = Color(0xFF48D38A);
   static const mintLight = Color(0xFFE6F9F0);
+  static const mintForeground = Color(0xFF176B42);
   static const sky = Color(0xFF5AB4FF);
   static const skyLight = Color(0xFFEBF6FF);
   static const lavender = Color(0xFFB590F8);
@@ -53,8 +55,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
     required this.income,
     required this.incomeContainer,
+    required this.onIncomeContainer,
     required this.expense,
     required this.expenseContainer,
+    required this.onExpenseContainer,
     required this.info,
     required this.infoContainer,
   });
@@ -62,8 +66,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   static const light = AppSemanticColors(
     income: AppColors.mint,
     incomeContainer: AppColors.mintLight,
+    onIncomeContainer: AppColors.mintForeground,
     expense: AppColors.coral,
     expenseContainer: AppColors.coralLight,
+    onExpenseContainer: AppColors.coralForeground,
     info: AppColors.sky,
     infoContainer: AppColors.skyLight,
   );
@@ -71,16 +77,20 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   static const dark = AppSemanticColors(
     income: AppColors.mint,
     incomeContainer: AppColors.darkSurfaceWarm,
+    onIncomeContainer: AppColors.mint,
     expense: AppColors.coral,
     expenseContainer: AppColors.darkSurfaceWarm,
+    onExpenseContainer: AppColors.coral,
     info: AppColors.sky,
     infoContainer: AppColors.darkSurfaceWarm,
   );
 
   final Color income;
   final Color incomeContainer;
+  final Color onIncomeContainer;
   final Color expense;
   final Color expenseContainer;
+  final Color onExpenseContainer;
   final Color info;
   final Color infoContainer;
 
@@ -88,15 +98,19 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   AppSemanticColors copyWith({
     Color? income,
     Color? incomeContainer,
+    Color? onIncomeContainer,
     Color? expense,
     Color? expenseContainer,
+    Color? onExpenseContainer,
     Color? info,
     Color? infoContainer,
   }) => AppSemanticColors(
     income: income ?? this.income,
     incomeContainer: incomeContainer ?? this.incomeContainer,
+    onIncomeContainer: onIncomeContainer ?? this.onIncomeContainer,
     expense: expense ?? this.expense,
     expenseContainer: expenseContainer ?? this.expenseContainer,
+    onExpenseContainer: onExpenseContainer ?? this.onExpenseContainer,
     info: info ?? this.info,
     infoContainer: infoContainer ?? this.infoContainer,
   );
@@ -107,10 +121,20 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     return AppSemanticColors(
       income: Color.lerp(income, other.income, t)!,
       incomeContainer: Color.lerp(incomeContainer, other.incomeContainer, t)!,
+      onIncomeContainer: Color.lerp(
+        onIncomeContainer,
+        other.onIncomeContainer,
+        t,
+      )!,
       expense: Color.lerp(expense, other.expense, t)!,
       expenseContainer: Color.lerp(
         expenseContainer,
         other.expenseContainer,
+        t,
+      )!,
+      onExpenseContainer: Color.lerp(
+        onExpenseContainer,
+        other.onExpenseContainer,
         t,
       )!,
       info: Color.lerp(info, other.info, t)!,

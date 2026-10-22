@@ -13,8 +13,10 @@ import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
 import 'package:expense_tracker_app/features/transactions/data/repositories/local_transaction_repository.dart';
 import 'package:expense_tracker_app/features/transactions/domain/entities/financial_transaction.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 Future<void> settle(WidgetTester tester) async {
   await tester.runAsync(
@@ -81,8 +83,15 @@ void main() {
       await open(tester);
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(DashboardSummaryCard), findsOneWidget);
-      expect(find.text(r'$0.00'), findsOneWidget);
-      expect(find.text('Hi, Personal!'), findsOneWidget);
+      expect(find.text(r'-$0.00'), findsOneWidget);
+      expect(find.text(r'+$0.00'), findsOneWidget);
+      expect(find.text('Hi, Personal!'), findsNothing);
+      expect(find.text("Let's manage your money"), findsNothing);
+      expect(find.byTooltip('Settings and tracker management'), findsNothing);
+      expect(find.text('Personal (USD)'), findsOneWidget);
+      expect(find.byKey(const Key('monthly-summary')), findsNothing);
+      expect(find.byKey(const Key('remaining-amount')), findsNothing);
+      expect(find.text('Set monthly budget'), findsNothing);
       expect(find.byType(SpendingOverview), findsOneWidget);
       expect(find.byType(PieChart), findsNothing);
       expect(
@@ -110,6 +119,32 @@ void main() {
     },
   );
 
+  testWidgets('Summary arrows precede labels on the same row above amounts', (
+    tester,
+  ) async {
+    await open(tester);
+    for (final (label, icon, amount) in [
+      ('Expenses', Icons.arrow_outward, r'-$0.00'),
+      ('Income', Icons.south_west, r'+$0.00'),
+    ]) {
+      final card = find.byKey(ValueKey('summary-${label.toLowerCase()}'));
+      final arrow = find.descendant(of: card, matching: find.byIcon(icon));
+      final title = find.descendant(of: card, matching: find.text(label));
+      final value = find.descendant(of: card, matching: find.text(amount));
+      expect(tester.getRect(arrow).right, lessThan(tester.getRect(title).left));
+      expect(
+        tester.getCenter(arrow).dy,
+        closeTo(tester.getCenter(title).dy, 1),
+      );
+      expect(
+        tester.getRect(value).top,
+        greaterThan(tester.getRect(title).bottom),
+      );
+      expect(tester.widget<Icon>(arrow).semanticLabel, isNull);
+    }
+    await close(tester);
+  });
+
   testWidgets(
     'Actual totals include savings, recent entries are newest first and View all opens filtered history',
     (tester) async {
@@ -126,8 +161,23 @@ void main() {
         }
       });
       await open(tester);
-      expect(find.text(r'$750.00'), findsOneWidget);
+      expect(find.text(r'$750.00'), findsNothing);
+      expect(find.text(r'Savings: $200.00'), findsNothing);
+      await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('monthly-summary')),
+        200,
+      );
+      expect(find.text(r'Income: $1,000.00'), findsOneWidget);
+      expect(find.text(r'Expenses: $50.00'), findsOneWidget);
       expect(find.text(r'Savings: $200.00'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('remaining-amount'))).data,
+        r'$750.00',
+      );
+      await tester.tap(find.byKey(const Key('dashboard-tab-0')));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.byType(SpendingOverview), 200);
       expect(find.byType(PieChart), findsOneWidget);
       final overview = tester.widget<SpendingOverview>(
@@ -136,6 +186,20 @@ void main() {
       expect(overview.analytics.expenseMinor, BigInt.from(5000));
       expect(overview.analytics.expenseCount, 5);
       await tester.scrollUntilVisible(find.text('View all'), 200);
+      final recentHeader = find
+          .ancestor(
+            of: find.text('Recent transactions'),
+            matching: find.byType(Row),
+          )
+          .first;
+      expect(
+        find.descendant(of: recentHeader, matching: find.byType(Chip)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: recentHeader, matching: find.text('View all')),
+        findsOneWidget,
+      );
       await tester.tap(find.text('View all'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Purchase 4'), 200);
@@ -171,13 +235,20 @@ void main() {
     (tester) async {
       await tester.runAsync(() => save('Bill', TransactionType.expense, 2500));
       await open(tester);
+      await tester.scrollUntilVisible(find.byType(SpendingOverview), 200);
+      final chart = tester.widget<PieChart>(find.byType(PieChart));
+      expect(chart.data.sections.single.value, 100);
+      await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('monthly-summary')),
+        200,
+      );
+      expect(find.text(r'Income: $0.00'), findsOneWidget);
       expect(
         tester.widget<Text>(find.byKey(const Key('remaining-amount'))).data,
         r'-$25.00',
       );
-      await tester.scrollUntilVisible(find.byType(SpendingOverview), 200);
-      final chart = tester.widget<PieChart>(find.byType(PieChart));
-      expect(chart.data.sections.single.value, 100);
       await close(tester);
     },
   );
@@ -188,7 +259,7 @@ void main() {
       await open(tester);
       expect(find.text('Delete Profile'), findsNothing);
       expect(find.text('Manage categories'), findsNothing);
-      await tester.tap(find.byTooltip('Settings and tracker management'));
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
       await tester.pumpAndSettle();
       expect(find.text('Profile & settings'), findsOneWidget);
       await tester.tap(find.byKey(const Key('manage-categories')));
@@ -206,6 +277,7 @@ void main() {
       expect(find.text('Stats'), findsWidgets);
       await tester.scrollUntilVisible(find.text('Monthly budget'), 200);
       expect(find.text('Monthly budget'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Set monthly budget'), 100);
       await tester.tap(find.text('Set monthly budget'));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNWidgets(3));
@@ -229,9 +301,11 @@ void main() {
       });
       await open(tester);
       expect(find.textContaining('Monthly totals exceed'), findsOneWidget);
+      expect(find.byKey(const Key('monthly-summary')), findsNothing);
       await tester.tap(find.byKey(const Key('dashboard-tab-2')));
       await tester.pumpAndSettle();
       expect(find.textContaining('Monthly totals exceed'), findsOneWidget);
+      expect(find.byKey(const Key('monthly-summary')), findsNothing);
       await tester.tap(find.byKey(const Key('dashboard-tab-1')));
       await tester.pumpAndSettle();
       expect(find.text('Second income'), findsOneWidget);
@@ -243,6 +317,152 @@ void main() {
       await close(tester);
     },
   );
+
+  testWidgets('Transaction date sits below amount on Home and Transactions', (
+    tester,
+  ) async {
+    final loader = FontLoader('Nunito')
+      ..addFont(rootBundle.load('assets/fonts/Nunito-Variable.ttf'));
+    await loader.load();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(
+      () => save('Coffee', TransactionType.expense, 1250, day: today.day),
+    );
+    await open(tester);
+    for (final tab in [0, 1]) {
+      if (tab == 1) {
+        await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+        await tester.pumpAndSettle();
+      }
+      final date = find.byKey(const ValueKey('transaction-date-Coffee'));
+      final amount = find.byKey(const ValueKey('transaction-amount-Coffee'));
+      await tester.scrollUntilVisible(date, 100);
+      await tester.pumpAndSettle();
+      final time = DateFormat.jm().format(
+        DateTime(today.year, today.month, today.day, 9),
+      );
+      expect(tester.widget<Text>(date).data, tab == 0 ? 'Today' : time);
+      final tooltip = tester.widget<Tooltip>(
+        find.ancestor(of: date, matching: find.byType(Tooltip)),
+      );
+      expect(
+        tooltip.message,
+        DateFormat.yMMMd().add_jm().format(
+          DateTime(today.year, today.month, today.day, 9),
+        ),
+      );
+      expect(
+        tester.getRect(date).top,
+        greaterThanOrEqualTo(tester.getRect(amount).bottom),
+      );
+      expect(
+        tester.getRect(date).right,
+        closeTo(tester.getRect(amount).right, 1),
+      );
+      final rowFinder = find.ancestor(
+        of: date,
+        matching: find.byType(ListTile),
+      );
+      final row = tester.widget<ListTile>(rowFinder);
+      expect(
+        find.descendant(of: find.byWidget(row.trailing!), matching: date),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byWidget(row.subtitle!),
+          matching: find.text('Coffee'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: find.byWidget(row.subtitle!), matching: date),
+        findsNothing,
+      );
+      expect(tester.getSize(rowFinder).height, lessThanOrEqualTo(100));
+      expect(row.onTap, isNotNull);
+      expect(tester.takeException(), isNull);
+    }
+    await close(tester);
+  });
+
+  testWidgets(
+    'Home keeps tap-to-edit without delete; Transactions confirms deletion',
+    (tester) async {
+      await tester.runAsync(
+        () => save('Coffee', TransactionType.expense, 1250),
+      );
+      await open(tester);
+      await tester.scrollUntilVisible(find.text('Coffee'), 100);
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      await tester.tap(find.text('Coffee'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit transaction'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Coffee'), 100);
+      await tester.tap(find.text('Coffee'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit transaction'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Delete Coffee'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete transaction?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Coffee'), findsOneWidget);
+      await tester.tap(find.byTooltip('Delete Coffee'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await settle(tester);
+      expect(find.text('Coffee'), findsNothing);
+      final rows = await tester.runAsync(
+        () => LocalTransactionRepository(db).watchTransactions('a').first,
+      );
+      expect(rows, isEmpty);
+      await close(tester);
+    },
+  );
+
+  for (final populated in [false, true]) {
+    testWidgets(
+      'No generic footer on Home or Transactions (populated: $populated)',
+      (tester) async {
+        if (populated) {
+          await tester.runAsync(
+            () => save('Coffee', TransactionType.expense, 1250),
+          );
+        }
+        await open(tester);
+        for (final tab in [0, 1]) {
+          await tester.tap(find.byKey(ValueKey('dashboard-tab-$tab')));
+          await tester.pumpAndSettle();
+          await tester.drag(
+            find.byType(ListView).first,
+            const Offset(0, -3000),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Keeping your money calm, intentional, and friendly.'),
+            findsNothing,
+          );
+          if (populated) {
+            expect(find.text('Coffee'), findsOneWidget);
+          } else {
+            expect(find.text('Add first transaction'), findsOneWidget);
+          }
+          expect(tester.takeException(), isNull);
+        }
+        await close(tester);
+      },
+    );
+  }
 
   testWidgets(
     'Transactions searches category and notes, sorts, clears, and keeps type filters',
@@ -390,6 +610,17 @@ void main() {
       );
       expect(find.byType(LineChart), findsNothing);
       expect(find.byType(PieChart), findsNothing);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('monthly-summary')),
+        200,
+      );
+      expect(find.text(r'Income: $0.00'), findsOneWidget);
+      expect(find.text(r'Expenses: $0.00'), findsOneWidget);
+      expect(find.text(r'Savings: $0.00'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('remaining-amount'))).data,
+        r'$0.00',
+      );
       await close(tester);
     },
   );
@@ -427,7 +658,11 @@ void main() {
           AppColors.lavender,
         ]);
         expect(pie.data.sections.first.value, 50);
-        expect(find.text(r'Groceries  $3.00  50.0%'), findsOneWidget);
+        expect(find.text('Groceries'), findsWidgets);
+        expect(find.text(r'$3.00'), findsOneWidget);
+        expect(find.text('50%'), findsOneWidget);
+        expect(find.text('33%'), findsOneWidget);
+        expect(find.text('17%'), findsOneWidget);
         expect(
           find.bySemanticsLabel(
             r'Total expenses: $6.00. Category breakdown follows.',
@@ -454,6 +689,55 @@ void main() {
       }
     },
   );
+
+  testWidgets('Home Other opens the complete Stats breakdown', (tester) async {
+    await tester.runAsync(() async {
+      for (var index = 0; index < 7; index++) {
+        final categoryId = 'overview-$index';
+        await LocalProfileRepository(db).save(
+          'a',
+          TransactionCategory(
+            id: categoryId,
+            name: 'Category $index',
+            type: TransactionType.expense,
+            iconKey: 'category',
+            colorArgb: 0xFF2E7D32,
+            defaultBudgetBucket: 'needs',
+          ),
+        );
+        await LocalTransactionRepository(db).save(
+          FinancialTransaction(
+            id: categoryId,
+            profileId: 'a',
+            categoryId: categoryId,
+            amountMinor: 100 - index,
+            type: TransactionType.expense,
+            occurredAt: DateTime(today.year, today.month, 1),
+          ),
+        );
+      }
+    });
+    await open(tester);
+    await tester.scrollUntilVisible(find.text('Other'), 100);
+    expect(
+      tester.widget<PieChart>(find.byType(PieChart)).data.sections,
+      hasLength(5),
+    );
+    await tester.tap(find.text('Other'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byType(SpendingOverview), 100);
+    expect(
+      tester.widget<SpendingOverview>(find.byType(SpendingOverview)).compact,
+      isFalse,
+    );
+    expect(
+      tester.widget<PieChart>(find.byType(PieChart)).data.sections,
+      hasLength(7),
+    );
+    expect(find.text('Other'), findsNothing);
+    expect(find.text('Category 6'), findsOneWidget);
+    await close(tester);
+  });
 
   for (final brightness in Brightness.values) {
     for (final (size, scale) in [
@@ -499,6 +783,30 @@ void main() {
           );
           expect(find.byType(DashboardSummaryCard), findsOneWidget);
           expect(tester.takeException(), isNull);
+          final semantic = Theme.of(
+            tester.element(find.byType(DashboardSummaryCard)),
+          ).extension<AppSemanticColors>()!;
+          for (final (label, foreground, icon) in [
+            ('Expenses', semantic.onExpenseContainer, Icons.arrow_outward),
+            ('Income', semantic.onIncomeContainer, Icons.south_west),
+          ]) {
+            final card = find.byKey(ValueKey('summary-${label.toLowerCase()}'));
+            final texts = tester.widgetList<Text>(
+              find.descendant(of: card, matching: find.byType(Text)),
+            );
+            expect(texts, hasLength(2));
+            for (final text in texts) {
+              expect(text.style?.color, foreground);
+            }
+            expect(
+              tester
+                  .widget<Icon>(
+                    find.descendant(of: card, matching: find.byIcon(icon)),
+                  )
+                  .color,
+              foreground,
+            );
+          }
           for (final tab in [1, 2, 3, 0]) {
             await tester.tap(find.byKey(ValueKey('dashboard-tab-$tab')));
             await tester.pumpAndSettle();
@@ -510,6 +818,12 @@ void main() {
             }
             if (tab == 2) {
               await tester.scrollUntilVisible(find.byType(LineChart), 200);
+              await tester.pumpAndSettle();
+              expect(tester.takeException(), isNull);
+              await tester.scrollUntilVisible(
+                find.byKey(const Key('monthly-summary')),
+                200,
+              );
               await tester.pumpAndSettle();
               expect(tester.takeException(), isNull);
             }

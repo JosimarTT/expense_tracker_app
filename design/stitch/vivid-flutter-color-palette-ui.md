@@ -57,8 +57,10 @@ from a seed for roles already specified here.
 | primaryDark | #E88523 | Pressed-state accent and selected-avatar label |
 | coral | #FF7E6B | Expense/error accent and secondary accent |
 | coralLight | #FFEDE9 | Light expense/error container |
+| coralForeground | #A63D30 | Readable expense summary foreground on coralLight |
 | mint | #48D38A | Income/success accent and valid-name indicator |
 | mintLight | #E6F9F0 | Light income/success container |
+| mintForeground | #176B42 | Readable income summary foreground on mintLight |
 | sky | #5AB4FF | Information accent |
 | skyLight | #EBF6FF | Light information container |
 | lavender | #B590F8 | Category/decorative accent |
@@ -136,7 +138,9 @@ White foregrounds are `#FFFFFF`; transparent surface tint is intentional.
 | Primary / onPrimary | primary / white | primary / white |
 | Primary container | primaryLight | darkSurfaceWarm |
 | Income container | mintLight | darkSurfaceWarm |
+| onIncomeContainer | mintForeground | mint |
 | Expense/error container | coralLight | darkSurfaceWarm |
+| onExpenseContainer | coralForeground | coral |
 | Information container | skyLight | darkSurfaceWarm |
 
 Income, expense, and information accents remain mint, coral, and sky in both
@@ -308,19 +312,64 @@ fonts do not replace this document's tokens or imply seeded user data.
 
 - Bottom navigation: Home, Transactions, central Add action, Stats, Profile.
   Keep selected semantics and a container highlight in addition to color.
-- Home: greeting and profile context, expense/income cards, spending overview
+- Home: a single profile-selector/month-controls header without a separate
+  greeting/avatar row; settings remain accessible through the Profile tab.
+  Retain screen titles on Transactions, Stats, and Profile.
+  Follow with expense/income cards, spending overview
   with category donut and legend, then the three latest transactions and View all.
-  Retain remaining-to-allocate, recorded savings, and the monthly-budget action
-  in a compact secondary card rather than an oversized hero.
+  The Recent transactions header has no total-count badge.
+  Home and Transactions end after their content without a generic motivational
+  footer. Retain actionable empty-state guidance.
+  Do not show a separate remaining-to-allocate card or budget action on Home.
+- Summary-card direction arrows sit immediately before the Expenses/Income
+  labels in one compact row, with the amount below. Arrows indicate money
+  direction, not a comparison or trend, and do not repeat the accessible label.
+- Summary-card label, amount, and arrow share `onIncomeContainer` or
+  `onExpenseContainer`. These explicit foregrounds preserve semantic hues and
+  provide at least 4.5:1 contrast against their containers in both themes
+  (light income 5.96:1, light expense 5.57:1; dark 6.79:1 and 5.23:1).
+  Existing chart accents and transaction colors are unchanged.
 - Transactions: searchable category/notes, All/Income/Expense/Savings filters,
   newest/oldest sorting, and Today/Yesterday/calendar-date groups. Category is
-  the primary label; notes are secondary. Keep editing and confirmed deletion.
+  the primary label; notes are secondary. Normal transaction rows place the
+  amount and date/time in a right-aligned column, with date/time below amount.
+  Home shows Today, Yesterday, or 2–6 days ago when viewing the current month.
+  Older and future entries show a localized calendar date (for example Oct 14);
+  previous-month views use calendar dates throughout. Include the year for
+  entries outside the current year. Transactions shows time under its
+  existing date-group headings. The date tooltip exposes the full timestamp.
+  Large text and long amounts retain a stacked fallback; generated savings
+  retain their read-only explanation. Tap-to-edit remains available on Home
+  and Transactions for editable entries; saving requires explicit confirmation.
+  Home has no inline delete icons. Transactions retains its discoverable delete
+  icons and confirmation dialog; generated savings cannot be edited or deleted.
 - Stats: actual total expenses, comparison against the previous full calendar
   month, category breakdown, daily expense trend, and a factual encouragement
-  card. Budget percentages and bucket progress remain below the analytics.
+  card. A compact monthly summary below the analytics shows income, expenses,
+  savings, and remaining to allocate (income minus expenses minus savings).
+  Preserve negative remainders and zero-income values; do not substitute an
+  ambiguous "used" percentage or progress bar. Budget editing, percentages,
+  and bucket progress follow the summary. Hide the summary and show the
+  existing explicit error when totals exceed the supported range.
 - All views share the selected profile and calendar month. Savings and income
   are excluded from expense charts. Archived categories remain in history.
 - Chart colors cycle through coral, sky, lavender, mint, and primary tokens.
+  Category legends use three aligned columns: category left, amount centered,
+  whole-number percentage right. Long category names use one-line ellipsis;
+  tapping the name reveals a tooltip and semantics retain the full name.
+  Place the legend below the donut when measured amounts, available width,
+  or text scaling make a side-by-side layout too cramped. Never truncate money.
+  Independently rounded percentages can sum to 99% or 101%.
+  Home uses a compact 112px donut with the legend alongside it at normal text
+  sizes. Show all categories when there are five or fewer; otherwise show the
+  four largest individual categories and aggregate the rest as Other, always
+  last even when its combined amount is larger. Use the same grouping in the
+  donut and legend, exact summed minor units, and a neutral textMuted /
+  darkTextMuted segment for Other. Its tooltip and semantics identify the
+  grouped categories, and tapping opens Stats, which retains the full breakdown.
+  Omit Home's repeated month and show its total only once: inside the donut if
+  it fits, otherwise above it. Large text or long amounts can still stack the
+  legend below the chart. Never shrink text or clip money to force two columns.
   Use exact formatted amounts and named categories in legends; colors alone
   must not carry meaning. Daily-chart semantics list dates and amounts.
 - Never invent percentage changes, savings achievements, or chart segments.

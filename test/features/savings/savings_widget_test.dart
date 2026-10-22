@@ -88,8 +88,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
       await tester.pumpAndSettle();
-      expect(find.text(r'Savings: $50.00'), findsOneWidget);
+      expect(find.text(r'Savings: $50.00'), findsNothing);
       expect(find.text(r'-$0.00'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('monthly-summary')),
+        200,
+      );
+      expect(find.text(r'Savings: $50.00'), findsOneWidget);
       expect(find.text(r'-$50.00'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
@@ -134,6 +141,21 @@ void main() {
       expect(row.leading, isA<CategoryAvatar>());
       final deleteButton = find.byWidgetPredicate(
         (widget) => widget is IconButton && widget.tooltip == 'Delete $note',
+      );
+      expect(deleteButton, findsNothing);
+      await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text(note), 200);
+      expect(
+        tester
+            .widget<ListTile>(
+              find.ancestor(
+                of: find.text(note),
+                matching: find.byType(ListTile),
+              ),
+            )
+            .onTap,
+        isNull,
       );
       expect(tester.widget<IconButton>(deleteButton).onPressed, isNull);
       await tester.pumpWidget(const SizedBox.shrink());

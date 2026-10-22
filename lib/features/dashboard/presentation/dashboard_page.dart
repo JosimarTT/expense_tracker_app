@@ -23,6 +23,7 @@ import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../../transactions/presentation/transaction_dialog.dart';
 import '../domain/spending_analytics.dart';
 import 'dashboard_widgets.dart';
+import 'home_transaction_date.dart';
 import 'spending_charts.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -169,40 +170,42 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(switch (_tab) {
-                      0 => 'Hi, ${widget.profile.name}!',
-                      1 => 'Transactions',
-                      2 => 'Stats',
-                      _ => 'Profile & settings',
-                    }, style: Theme.of(context).textTheme.headlineMedium),
-                    if (_tab == 0) const Text("Let's manage your money"),
-                  ],
+          if (_tab != 0) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(switch (_tab) {
+                        1 => 'Transactions',
+                        2 => 'Stats',
+                        _ => 'Profile & settings',
+                      }, style: Theme.of(context).textTheme.headlineMedium),
+                    ],
+                  ),
                 ),
-              ),
-              if (_tab == 1)
-                IconButton(
-                  tooltip: _searching ? 'Close search' : 'Search transactions',
-                  icon: Icon(_searching ? Icons.search_off : Icons.search),
-                  onPressed: () => setState(() {
-                    _searching = !_searching;
-                    if (!_searching) _search.clear();
-                  }),
-                )
-              else
-                IconButton(
-                  tooltip: 'Settings and tracker management',
-                  onPressed: () => setState(() => _tab = 3),
-                  icon: ProfileAvatarIcon(avatar: widget.profile.avatar),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                if (_tab == 1)
+                  IconButton(
+                    tooltip: _searching
+                        ? 'Close search'
+                        : 'Search transactions',
+                    icon: Icon(_searching ? Icons.search_off : Icons.search),
+                    onPressed: () => setState(() {
+                      _searching = !_searching;
+                      if (!_searching) _search.clear();
+                    }),
+                  )
+                else
+                  IconButton(
+                    tooltip: 'Settings and tracker management',
+                    onPressed: () => setState(() => _tab = 3),
+                    icon: ProfileAvatarIcon(avatar: widget.profile.avatar),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           LayoutBuilder(
             builder: (context, constraints) {
               final profilePicker = ProfileSelector(
@@ -451,15 +454,11 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         ),
       if (_tab == 0) ...[
         if (summary != null)
-          DashboardSummaryCard(
-            summary: summary,
-            money: _money,
-            currencyCode: widget.profile.currencyCode,
-            budgetLabel: budgetLabel,
-            onBudget: canEditBudget ? editBudget : null,
-          ),
+          DashboardSummaryCard(summary: summary, money: _money),
         const SizedBox(height: 16),
         SpendingOverview(
+          compact: true,
+          onShowAll: () => setState(() => _tab = 2),
           analytics: analytics,
           categories: categories.requireValue,
           money: _analyticsMoney,
@@ -556,6 +555,36 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           ),
         ),
         const SizedBox(height: 24),
+        if (summary != null) ...[
+          Card(
+            key: const Key('monthly-summary'),
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Monthly summary (${widget.profile.currencyCode})',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Income: ${_money(summary.incomeMinor)}'),
+                  Text('Expenses: ${_money(summary.expenseMinor)}'),
+                  Text('Savings: ${_money(summary.savingsMinor)}'),
+                  const SizedBox(height: 8),
+                  const Text('Remaining to allocate'),
+                  Text(
+                    _money(summary.remainingMinor),
+                    key: const Key('remaining-amount'),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         Text(
           'Monthly budget',
           style: Theme.of(context).textTheme.headlineSmall,
@@ -630,7 +659,6 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              Chip(label: Text('${monthly.length}')),
               if (_tab == 0 && monthly.isNotEmpty)
                 TextButton(
                   onPressed: () => setState(() => _tab = 1),
@@ -713,14 +741,6 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             ),
           _transactionCard(visible[index], categories.requireValue, names),
         ],
-        const SizedBox(height: 16),
-        const Padding(
-          padding: EdgeInsets.all(12),
-          child: Text(
-            'Keeping your money calm, intentional, and friendly.',
-            textAlign: TextAlign.center,
-          ),
-        ),
       ],
     ];
     return Scaffold(
@@ -767,7 +787,25 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         '${transaction.type == TransactionType.income ? '+' : '-'}${_money(transaction.amountMinor)}';
     final amountLabel = Text(
       amountText,
+      key: ValueKey('transaction-amount-${transaction.id}'),
       style: Theme.of(context).textTheme.titleMedium?.copyWith(color: color),
+    );
+    final dateLabel = Tooltip(
+      message: DateFormat.yMMMd().add_jm().format(
+        transaction.occurredAt.toLocal(),
+      ),
+      child: Text(
+        _tab == 0
+            ? homeTransactionDate(
+                occurredAt: transaction.occurredAt,
+                selectedMonth: _month,
+                now: DateTime.now(),
+              )
+            : DateFormat.jm().format(transaction.occurredAt.toLocal()),
+        key: ValueKey('transaction-date-${transaction.id}'),
+        textAlign: TextAlign.right,
+        style: Theme.of(context).textTheme.labelSmall,
+      ),
     );
     final sideAmount =
         MediaQuery.sizeOf(context).width >= 390 &&
@@ -794,10 +832,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (transaction.notes.isNotEmpty) Text(transaction.notes),
-            Text(
-              '${_tab == 0 ? '${_dayLabel(transaction.occurredAt)} - ' : ''}${DateFormat.jm().format(transaction.occurredAt.toLocal())}',
-            ),
-            if (!sideAmount) amountLabel,
+            if (!sideAmount) ...[amountLabel, dateLabel],
             if (transaction.savingsMonth != null)
               const Text('Automatic; edit source transactions to recalculate'),
           ],
@@ -818,9 +853,18 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         trailing: sideAmount
             ? Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [amountLabel, deleteButton],
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [amountLabel, dateLabel],
+                  ),
+                  if (_tab == 1) deleteButton,
+                ],
               )
-            : deleteButton,
+            : _tab == 1
+            ? deleteButton
+            : null,
       ),
     );
   }

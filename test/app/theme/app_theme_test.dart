@@ -73,6 +73,23 @@ void main() {
       );
       expect(semantic.expense, AppColors.coral);
       expect(
+        semantic.onIncomeContainer,
+        isDark ? AppColors.mint : AppColors.mintForeground,
+      );
+      expect(
+        semantic.onExpenseContainer,
+        isDark ? AppColors.coral : AppColors.coralForeground,
+      );
+      for (final (foreground, background) in [
+        (semantic.onIncomeContainer, semantic.incomeContainer),
+        (semantic.onExpenseContainer, semantic.expenseContainer),
+      ]) {
+        final a = foreground.computeLuminance();
+        final b = background.computeLuminance();
+        final ratio = a > b ? (a + 0.05) / (b + 0.05) : (b + 0.05) / (a + 0.05);
+        expect(ratio, greaterThanOrEqualTo(4.5));
+      }
+      expect(
         semantic.expenseContainer,
         isDark ? AppColors.darkSurfaceWarm : AppColors.coralLight,
       );
@@ -141,8 +158,10 @@ void main() {
     expect(AppColors.primaryDark, const Color(0xFFE88523));
     expect(AppColors.coral, const Color(0xFFFF7E6B));
     expect(AppColors.coralLight, const Color(0xFFFFEDE9));
+    expect(AppColors.coralForeground, const Color(0xFFA63D30));
     expect(AppColors.mint, const Color(0xFF48D38A));
     expect(AppColors.mintLight, const Color(0xFFE6F9F0));
+    expect(AppColors.mintForeground, const Color(0xFF176B42));
     expect(AppColors.sky, const Color(0xFF5AB4FF));
     expect(AppColors.skyLight, const Color(0xFFEBF6FF));
     expect(AppColors.lavender, const Color(0xFFB590F8));
@@ -175,6 +194,25 @@ void main() {
     const dark = AppSemanticColors.dark;
     expect(light.copyWith().income, light.income);
     expect(light.copyWith(info: Colors.purple).info, Colors.purple);
+    expect(light.copyWith().onIncomeContainer, light.onIncomeContainer);
+    expect(
+      light.copyWith(onExpenseContainer: Colors.red).onExpenseContainer,
+      Colors.red,
+    );
+    expect(
+      light.copyWith(onIncomeContainer: Colors.green).onIncomeContainer,
+      Colors.green,
+    );
+    for (final t in [0.0, 0.5, 1.0]) {
+      expect(
+        light.lerp(dark, t).onIncomeContainer,
+        Color.lerp(light.onIncomeContainer, dark.onIncomeContainer, t),
+      );
+      expect(
+        light.lerp(dark, t).onExpenseContainer,
+        Color.lerp(light.onExpenseContainer, dark.onExpenseContainer, t),
+      );
+    }
     expect(light.lerp(null, 0.5), same(light));
     expect(light.lerp(dark, 0).expense, light.expense);
     expect(light.lerp(dark, 1).infoContainer, dark.infoContainer);
