@@ -599,6 +599,7 @@ void main() {
       await tester.scrollUntilVisible(find.text('Personal purchase'), 200);
       expect(find.text('Personal purchase'), findsOneWidget);
       expect(find.text('Household purchase'), findsNothing);
+      await tester.scrollUntilVisible(find.text('Personal (USD)'), -200);
       await tester.tap(find.text('Personal (USD)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Household (USD)').last);

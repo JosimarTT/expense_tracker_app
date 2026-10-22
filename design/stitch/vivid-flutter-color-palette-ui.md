@@ -300,6 +300,40 @@ instruction that all current buttons already implement one.
 - For unspecified disabled/hover/pressed states use shared Material theme
   behavior, not ad hoc opacity changes in individual views.
 
+### 7.6 Home, Transactions, and Stats composition
+
+The approved [look-and-feel reference](./look_and_feel.jpg) defines the
+composition of these three views. Its sample amounts, artwork, colors, and
+fonts do not replace this document's tokens or imply seeded user data.
+
+- Bottom navigation: Home, Transactions, central Add action, Stats, Profile.
+  Keep selected semantics and a container highlight in addition to color.
+- Home: greeting and profile context, expense/income cards, spending overview
+  with category donut and legend, then the three latest transactions and View all.
+  Retain remaining-to-allocate, recorded savings, and the monthly-budget action
+  in a compact secondary card rather than an oversized hero.
+- Transactions: searchable category/notes, All/Income/Expense/Savings filters,
+  newest/oldest sorting, and Today/Yesterday/calendar-date groups. Category is
+  the primary label; notes are secondary. Keep editing and confirmed deletion.
+- Stats: actual total expenses, comparison against the previous full calendar
+  month, category breakdown, daily expense trend, and a factual encouragement
+  card. Budget percentages and bucket progress remain below the analytics.
+- All views share the selected profile and calendar month. Savings and income
+  are excluded from expense charts. Archived categories remain in history.
+- Chart colors cycle through coral, sky, lavender, mint, and primary tokens.
+  Use exact formatted amounts and named categories in legends; colors alone
+  must not carry meaning. Daily-chart semantics list dates and amounts.
+- Never invent percentage changes, savings achievements, or chart segments.
+  Explicitly show no-data states; omit comparison percentages when the previous
+  month's expense total is zero. Compare whole months, not a fictional week.
+- Aggregate minor units exactly before converting normalized chart ratios to
+  floating point. Surface out-of-range display totals rather than truncating.
+- Use existing Nunito type roles, 24px cards, flat surfaces, 12/16/24px spacing,
+  semantic income/expense containers, Material icons, and bundled artwork.
+- Keep the header in the scrollable content so long identities and 2x text
+  cannot push content outside a narrow screen. Keep controls reachable at 320px.
+- No database, sync, receipt, bank, or monetization changes are implied.
+
 ## 8. Layout, icons, and motion
 
 - Use safe areas and available viewport dimensions, not device-name checks.

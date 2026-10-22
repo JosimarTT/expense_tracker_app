@@ -9,18 +9,21 @@ import '../../budgets/domain/budget_calculator.dart';
 import '../../budgets/domain/entities/budget_rule.dart';
 import '../../budgets/presentation/budget_dialog.dart';
 import '../../profiles/domain/profile.dart';
-import '../../profiles/presentation/delete_profile_dialog.dart';
-import '../../profiles/presentation/category_manager_dialog.dart';
 import '../../profiles/presentation/category_avatar.dart';
+import '../../profiles/presentation/category_manager_dialog.dart';
+import '../../profiles/presentation/delete_profile_dialog.dart';
+import '../../profiles/presentation/profile_avatar.dart';
 import '../../profiles/presentation/profile_dialog.dart';
 import '../../profiles/presentation/profile_selector.dart';
 import '../../profiles/presentation/welcome_view.dart';
+import '../../schedules/presentation/schedule_processor.dart';
+import '../../schedules/presentation/schedules_page.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../../transactions/presentation/transaction_dialog.dart';
-import '../../schedules/presentation/schedule_processor.dart';
-import '../../schedules/presentation/schedules_page.dart';
+import '../domain/spending_analytics.dart';
 import 'dashboard_widgets.dart';
+import 'spending_charts.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -101,6 +104,33 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   bool _savingAutomatic = false;
   int _tab = 0;
   TransactionType? _filter;
+  bool _searching = false;
+  bool _oldestFirst = false;
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  String _analyticsMoney(BigInt amount) =>
+      amount > BigInt.from(9223372036854775807)
+      ? 'Total exceeds supported range'
+      : _money(amount.toInt());
+
+  String _dayLabel(DateTime date) {
+    final local = date.toLocal();
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (DateUtils.isSameDay(local, today)) return 'Today';
+    if (DateUtils.isSameDay(
+      local,
+      DateTime(today.year, today.month, today.day - 1),
+    )) {
+      return 'Yesterday';
+    }
+    return DateFormat.yMMMd().format(local);
+  }
 
   Widget _header() {
     final monthPicker = Material(
@@ -135,46 +165,72 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       ),
     );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final profilePicker = ProfileSelector(
-            compact: true,
-            profiles: widget.profiles,
-            selected: widget.profile,
-            onSelected: widget.onSelected,
-          );
-          final settings = IconButton.filledTonal(
-            tooltip: 'Settings and tracker management',
-            onPressed: () => setState(() => _tab = 3),
-            icon: const Icon(Icons.settings_outlined),
-          );
-          if (constraints.maxWidth < 350 ||
-              MediaQuery.textScalerOf(context).scale(16) > 22) {
-            return Column(
-              children: [
-                Row(
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: profilePicker),
-                    const SizedBox(width: 8),
-                    settings,
+                    Text(switch (_tab) {
+                      0 => 'Hi, ${widget.profile.name}!',
+                      1 => 'Transactions',
+                      2 => 'Stats',
+                      _ => 'Profile & settings',
+                    }, style: Theme.of(context).textTheme.headlineMedium),
+                    if (_tab == 0) const Text("Let's manage your money"),
                   ],
                 ),
-                const SizedBox(height: 8),
-                monthPicker,
-              ],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: profilePicker),
-              const SizedBox(width: 8),
-              monthPicker,
-              const SizedBox(width: 4),
-              settings,
+              ),
+              if (_tab == 1)
+                IconButton(
+                  tooltip: _searching ? 'Close search' : 'Search transactions',
+                  icon: Icon(_searching ? Icons.search_off : Icons.search),
+                  onPressed: () => setState(() {
+                    _searching = !_searching;
+                    if (!_searching) _search.clear();
+                  }),
+                )
+              else
+                IconButton(
+                  tooltip: 'Settings and tracker management',
+                  onPressed: () => setState(() => _tab = 3),
+                  icon: ProfileAvatarIcon(avatar: widget.profile.avatar),
+                ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final profilePicker = ProfileSelector(
+                compact: true,
+                profiles: widget.profiles,
+                selected: widget.profile,
+                onSelected: widget.onSelected,
+              );
+              if (constraints.maxWidth < 350 ||
+                  MediaQuery.textScalerOf(context).scale(16) > 22) {
+                return Column(
+                  children: [
+                    profilePicker,
+                    const SizedBox(height: 8),
+                    monthPicker,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: profilePicker),
+                  const SizedBox(width: 8),
+                  monthPicker,
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -368,11 +424,24 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     final budgetLabel = rule == null
         ? 'Set monthly budget'
         : 'Edit monthly budget';
+    final analytics = SpendingAnalytics(
+      profileId: id,
+      month: _month,
+      transactions: transactions.requireValue,
+    );
+    final query = _search.text.trim().toLowerCase();
+    final filtered = monthly.where(
+      (row) =>
+          _tab != 1 ||
+          ((_filter == null || row.type == _filter) &&
+              (query.isEmpty ||
+                  row.notes.toLowerCase().contains(query) ||
+                  (names[row.categoryId]?.toLowerCase().contains(query) ??
+                      false))),
+    );
     final visible =
-        (_tab == 1 && _filter != null
-                ? monthly.where((row) => row.type == _filter)
-                : monthly)
-            .take(_tab == 0 ? 5 : monthly.length)
+        (_tab == 1 && _oldestFirst ? filtered.toList().reversed : filtered)
+            .take(_tab == 0 ? 3 : monthly.length)
             .toList();
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final content = <Widget>[
@@ -386,57 +455,18 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             summary: summary,
             money: _money,
             currencyCode: widget.profile.currencyCode,
-            isEmpty: monthly.isEmpty,
-            incomeCount: monthly
-                .where((row) => row.type == TransactionType.income)
-                .length,
-            expenseCount: monthly
-                .where((row) => row.type == TransactionType.expense)
-                .length,
-            savingsTarget: summary.buckets
-                .where((bucket) => bucket.bucket.id == 'savings')
-                .firstOrNull
-                ?.targetMinor,
             budgetLabel: budgetLabel,
             onBudget: canEditBudget ? editBudget : null,
           ),
-        if (monthly.isNotEmpty && summary != null) ...[
-          const SizedBox(height: 20),
-          Card(
-            color: summary.remainingMinor < 0
-                ? semantic.expenseContainer
-                : semantic.incomeContainer,
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(
-                    summary.remainingMinor < 0
-                        ? Icons.info_outline
-                        : Icons.spa_outlined,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      summary.remainingMinor < 0
-                          ? 'Expenses and savings exceed this month\'s income. Review your entries to stay on track.'
-                          : 'Keep your money intentional. You have ${_money(summary.remainingMinor)} left to allocate this month.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        const SizedBox(height: 16),
+        SpendingOverview(
+          analytics: analytics,
+          categories: categories.requireValue,
+          money: _analyticsMoney,
+        ),
         const SizedBox(height: 20),
       ],
       if (_tab == 3) ...[
-        Text(
-          'Profile & settings',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
         ListTile(
           leading: const Icon(Icons.person_add_alt_1),
           title: const Text('Create profile'),
@@ -494,6 +524,38 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         ),
       ],
       if (_tab == 2) ...[
+        ExpenseStatsCard(analytics: analytics, money: _analyticsMoney),
+        const SizedBox(height: 16),
+        SpendingOverview(
+          title: 'Expenses by category',
+          analytics: analytics,
+          categories: categories.requireValue,
+          money: _analyticsMoney,
+        ),
+        const SizedBox(height: 16),
+        DailySpendingChart(analytics: analytics, money: _analyticsMoney),
+        const SizedBox(height: 16),
+        Card(
+          color: semantic.incomeContainer,
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.spa_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    analytics.expenseCount == 0
+                        ? 'A fresh start. Record an expense to discover your spending patterns.'
+                        : '${analytics.expenseCount} ${analytics.expenseCount == 1 ? 'expense' : 'expenses'} recorded this month. Every entry helps you see the bigger picture.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
         Text(
           'Monthly budget',
           style: Theme.of(context).textTheme.headlineSmall,
@@ -559,26 +621,43 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           ),
       ],
       if (_tab == 0 || _tab == 1) ...[
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                _tab == 0 && monthly.isNotEmpty
-                    ? 'Recent transactions'
-                    : 'Transactions',
-                style: Theme.of(context).textTheme.titleLarge,
+        if (_tab == 0)
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Recent transactions',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-            ),
-            Chip(label: Text('${monthly.length}')),
-            if (_tab == 0 && monthly.isNotEmpty)
-              TextButton(
-                onPressed: () => setState(() => _tab = 1),
-                child: const Text('View all'),
-              ),
-          ],
-        ),
+              Chip(label: Text('${monthly.length}')),
+              if (_tab == 0 && monthly.isNotEmpty)
+                TextButton(
+                  onPressed: () => setState(() => _tab = 1),
+                  child: const Text('View all'),
+                ),
+            ],
+          ),
         const SizedBox(height: 16),
         if (_tab == 1) ...[
+          if (_searching) ...[
+            TextField(
+              controller: _search,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: 'Search transactions',
+                hintText: 'Category or notes',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  tooltip: 'Clear search',
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => setState(() => _search.clear()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -589,6 +668,24 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                   selected: _filter == type,
                   onSelected: (_) => setState(() => _filter = type),
                 ),
+              PopupMenuButton<bool>(
+                tooltip: 'Sort transactions',
+                initialValue: _oldestFirst,
+                onSelected: (value) => setState(() => _oldestFirst = value),
+                itemBuilder: (_) => [
+                  CheckedPopupMenuItem(
+                    value: false,
+                    checked: !_oldestFirst,
+                    child: const Text('Newest first'),
+                  ),
+                  CheckedPopupMenuItem(
+                    value: true,
+                    checked: _oldestFirst,
+                    child: const Text('Oldest first'),
+                  ),
+                ],
+                icon: const Icon(Icons.tune),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -599,17 +696,18 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             onAdd: canAdd ? addTransaction : null,
           ),
         if (monthly.isNotEmpty && visible.isEmpty)
-          const Text('No transactions match this type.'),
+          const Text('No transactions match your filters.'),
         for (var index = 0; index < visible.length; index++) ...[
-          if (index == 0 ||
-              !DateUtils.isSameDay(
-                visible[index - 1].occurredAt.toLocal(),
-                visible[index].occurredAt.toLocal(),
-              ))
+          if (_tab == 1 &&
+              (index == 0 ||
+                  !DateUtils.isSameDay(
+                    visible[index - 1].occurredAt.toLocal(),
+                    visible[index].occurredAt.toLocal(),
+                  )))
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               child: Text(
-                DateFormat.yMMMEd().format(visible[index].occurredAt.toLocal()),
+                _dayLabel(visible[index].occurredAt),
                 style: Theme.of(context).textTheme.labelLarge,
               ),
             ),
@@ -628,23 +726,16 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            _header(),
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: ListView(
-                    key: ValueKey('dashboard-content-$_tab'),
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    children: content,
-                  ),
-                ),
-              ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: ListView(
+              key: ValueKey('dashboard-content-$_tab'),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              children: [_header(), ...content],
             ),
-          ],
+          ),
         ),
       ),
       bottomNavigationBar: DashboardBottomBar(
@@ -672,6 +763,24 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     final title = transaction.notes.isEmpty
         ? names[transaction.categoryId] ?? transaction.categoryId
         : transaction.notes;
+    final amountText =
+        '${transaction.type == TransactionType.income ? '+' : '-'}${_money(transaction.amountMinor)}';
+    final amountLabel = Text(
+      amountText,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: color),
+    );
+    final sideAmount =
+        MediaQuery.sizeOf(context).width >= 390 &&
+        MediaQuery.textScalerOf(context).scale(16) <= 20 &&
+        amountText.length <= 16;
+    final deleteButton = IconButton(
+      tooltip: 'Delete $title',
+      onPressed:
+          _deleting.contains(transaction.id) || transaction.savingsMonth != null
+          ? null
+          : () => _delete(transaction),
+      icon: const Icon(Icons.delete_outline),
+    );
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -680,18 +789,15 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           colorArgb: category?.colorArgb ?? 0xFF455A64,
           iconKey: category?.iconKey ?? 'category',
         ),
-        title: Text(title),
+        title: Text(names[transaction.categoryId] ?? transaction.categoryId),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (transaction.notes.isNotEmpty) Text(transaction.notes),
             Text(
-              '${names[transaction.categoryId] ?? transaction.categoryId} - ${DateFormat.jm().format(transaction.occurredAt.toLocal())}',
+              '${_tab == 0 ? '${_dayLabel(transaction.occurredAt)} - ' : ''}${DateFormat.jm().format(transaction.occurredAt.toLocal())}',
             ),
-            Text(
-              '${transaction.type == TransactionType.income ? '+' : '-'}${_money(transaction.amountMinor)}',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: color),
-            ),
+            if (!sideAmount) amountLabel,
             if (transaction.savingsMonth != null)
               const Text('Automatic; edit source transactions to recalculate'),
           ],
@@ -709,16 +815,12 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                   existing: transaction,
                 ),
               ),
-        trailing: IconButton(
-          tooltip:
-              'Delete ${transaction.notes.isEmpty ? names[transaction.categoryId] ?? transaction.categoryId : transaction.notes}',
-          onPressed:
-              _deleting.contains(transaction.id) ||
-                  transaction.savingsMonth != null
-              ? null
-              : () => _delete(transaction),
-          icon: const Icon(Icons.delete_outline),
-        ),
+        trailing: sideAmount
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [amountLabel, deleteButton],
+              )
+            : deleteButton,
       ),
     );
   }
