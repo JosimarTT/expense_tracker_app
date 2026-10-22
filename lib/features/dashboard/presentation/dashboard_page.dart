@@ -822,7 +822,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: CategoryAvatar(
           colorArgb: category?.colorArgb ?? 0xFF455A64,
           iconKey: category?.iconKey ?? 'category',

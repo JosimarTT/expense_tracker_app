@@ -383,7 +383,13 @@ void main() {
         find.descendant(of: find.byWidget(row.subtitle!), matching: date),
         findsNothing,
       );
-      expect(tester.getSize(rowFinder).height, lessThanOrEqualTo(100));
+      expect(row.contentPadding, const EdgeInsets.symmetric(horizontal: 16));
+      expect(
+        tester.getRect(find.byWidget(row.leading!)).left -
+            tester.getRect(rowFinder).left,
+        closeTo(16, 0.1),
+      );
+      expect(tester.getSize(rowFinder).height, inInclusiveRange(48, 84));
       expect(row.onTap, isNotNull);
       expect(tester.takeException(), isNull);
     }

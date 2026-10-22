@@ -345,6 +345,9 @@ fonts do not replace this document's tokens or imply seeded user data.
   and Transactions for editable entries; saving requires explicit confirmation.
   Home has no inline delete icons. Transactions retains its discoverable delete
   icons and confirmation dialog; generated savings cannot be edited or deleted.
+  Transaction rows use 16px horizontal content padding with no additional
+  vertical content padding: retain ListTile's intrinsic vertical spacing and
+  touch targets rather than adding height around its existing layout.
 - Stats: actual total expenses, comparison against the previous full calendar
   month, category breakdown, daily expense trend, and a factual encouragement
   card. A compact monthly summary below the analytics shows income, expenses,
