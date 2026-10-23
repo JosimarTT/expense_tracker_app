@@ -320,6 +320,8 @@ void main() {
       );
       await tester.tap(find.text('View all'));
       await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Dismiss hint'));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Purchase 4'), 200);
       final first = tester.widgetList<ListTile>(find.byType(ListTile)).first;
       expect((first.title! as Text).data, 'Groceries');
@@ -538,13 +540,15 @@ void main() {
       expect(find.text('Edit transaction'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Delete Coffee'));
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      expect(find.byTooltip('Delete Coffee'), findsNothing);
+      await tester.drag(find.text('Coffee'), const Offset(-500, 0));
       await tester.pumpAndSettle();
       expect(find.text('Delete transaction?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(find.text('Coffee'), findsOneWidget);
-      await tester.tap(find.byTooltip('Delete Coffee'));
+      await tester.drag(find.text('Coffee'), const Offset(-500, 0));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await settle(tester);
@@ -729,11 +733,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Search transactions'));
       await tester.pumpAndSettle();
-      final search = find.widgetWithText(TextField, 'Search transactions');
+      final search = find.byType(TextField);
       await tester.enterText(search, ' COFFEE ');
       await tester.pumpAndSettle();
       expect(find.text('Early coffee'), findsOneWidget);
       expect(find.text('Later market'), findsNothing);
+      await tester.enterText(search, r'$3.00');
+      await tester.pumpAndSettle();
+      expect(find.text('Later market'), findsOneWidget);
+      expect(find.text('Early coffee'), findsNothing);
       await tester.enterText(search, 'groceries');
       await tester.pumpAndSettle();
       expect(find.text('Early coffee'), findsOneWidget);
@@ -751,9 +759,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Sort transactions'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.widgetWithText(CheckedPopupMenuItem<bool>, 'Oldest first'),
-      );
+      await tester.tap(find.text('Oldest first'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Badge), findsOneWidget);
+      await tester.tap(find.byTooltip('Dismiss hint'));
       await tester.pumpAndSettle();
       final first = tester.widgetList<ListTile>(find.byType(ListTile)).first;
       expect(
@@ -766,6 +775,84 @@ void main() {
       await close(tester);
     },
   );
+
+  testWidgets(
+    'Transactions header: search and sort share the title row, pills, no profile picker, search replaces title',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.runAsync(
+        () => save('Coffee', TransactionType.expense, 1250),
+      );
+      await open(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+      await tester.pumpAndSettle();
+      final title = find.text('Transactions').first;
+      final searchButton = find.byTooltip('Search transactions');
+      final sortButton = find.byTooltip('Sort transactions');
+      expect(
+        tester.getCenter(searchButton).dy,
+        closeTo(tester.getCenter(title).dy, 1),
+      );
+      expect(
+        tester.getCenter(sortButton).dy,
+        closeTo(tester.getCenter(title).dy, 1),
+      );
+      expect(
+        tester.getRect(searchButton).right,
+        lessThan(tester.getRect(sortButton).left + 1),
+      );
+      expect(find.text('Personal (USD)'), findsNothing);
+      final month = tester.getRect(find.byTooltip('Previous month'));
+      final pills = [
+        for (final label in ['All', 'Income', 'Expense', 'Savings'])
+          tester.getRect(find.widgetWithText(ChoiceChip, label)),
+      ];
+      expect(month.bottom, lessThan(pills.first.top));
+      for (final pill in pills) {
+        expect(pill.top, pills.first.top);
+        expect(pill.right, lessThanOrEqualTo(390));
+      }
+      expect(
+        tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'All')).shape,
+        isA<StadiumBorder>(),
+      );
+      await tester.tap(searchButton);
+      await tester.pumpAndSettle();
+      final content = find.byKey(const ValueKey('dashboard-content-1'));
+      expect(
+        find.descendant(of: content, matching: find.text('Transactions')),
+        findsNothing,
+      );
+      expect(find.byType(TextField), findsOneWidget);
+      expect(tester.getRect(find.byType(TextField)).top, lessThan(month.top));
+      await tester.tap(find.byTooltip('Close search'));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: content, matching: find.text('Transactions')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
+
+  testWidgets('Swipe hint shows once per session and can be dismissed', (
+    tester,
+  ) async {
+    await tester.runAsync(() => save('Coffee', TransactionType.expense, 1250));
+    await open(tester);
+    expect(find.byKey(const Key('swipe-hint')), findsNothing);
+    await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Swipe left to delete. Tap to edit.'), findsOneWidget);
+    await tester.tap(find.byTooltip('Dismiss hint'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('swipe-hint')), findsNothing);
+    await close(tester);
+  });
 
   testWidgets(
     'Stats charts use only the selected profile and month with exact daily values',

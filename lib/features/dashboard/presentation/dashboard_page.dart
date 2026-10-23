@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -107,7 +108,33 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   TransactionType? _filter;
   bool _searching = false;
   bool _oldestFirst = false;
+  bool _swipeHintDismissed = false;
   final _search = TextEditingController();
+
+  Future<void> _showSortSheet() => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (label, oldest) in [
+            ('Newest first', false),
+            ('Oldest first', true),
+          ])
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: Text(label),
+              trailing: _oldestFirst == oldest ? const Icon(Icons.check) : null,
+              onTap: () {
+                setState(() => _oldestFirst = oldest);
+                Navigator.pop(sheetContext);
+              },
+            ),
+        ],
+      ),
+    ),
+  );
 
   @override
   void dispose() {
@@ -138,7 +165,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(28),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: _tab == 1 ? MainAxisSize.max : MainAxisSize.min,
         children: [
           IconButton(
             tooltip: 'Previous month',
@@ -148,8 +175,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             ),
           ),
           Flexible(
+            fit: _tab == 1 ? FlexFit.tight : FlexFit.loose,
             child: Text(
               DateFormat.yMMM().format(_month),
+              textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelLarge,
@@ -170,7 +199,32 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_tab != 0) ...[
+          if (_tab == 1 && _searching) ...[
+            TextField(
+              controller: _search,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Category, notes or amount',
+                prefixIcon: IconButton(
+                  tooltip: 'Close search',
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => setState(() {
+                    _searching = false;
+                    _search.clear();
+                  }),
+                ),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(_search.clear),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ] else if (_tab != 0) ...[
             Row(
               children: [
                 Expanded(
@@ -185,18 +239,23 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                     ],
                   ),
                 ),
-                if (_tab == 1)
+                if (_tab == 1) ...[
                   IconButton(
-                    tooltip: _searching
-                        ? 'Close search'
-                        : 'Search transactions',
-                    icon: Icon(_searching ? Icons.search_off : Icons.search),
-                    onPressed: () => setState(() {
-                      _searching = !_searching;
-                      if (!_searching) _search.clear();
-                    }),
-                  )
-                else
+                    tooltip: 'Search transactions',
+                    icon: const Icon(Icons.search),
+                    onPressed: () => setState(() => _searching = true),
+                  ),
+                  Badge(
+                    isLabelVisible: _oldestFirst,
+                    smallSize: 8,
+                    alignment: const AlignmentDirectional(28, 8),
+                    child: IconButton(
+                      tooltip: 'Sort transactions',
+                      icon: const Icon(Icons.tune),
+                      onPressed: _showSortSheet,
+                    ),
+                  ),
+                ] else
                   IconButton(
                     tooltip: 'Settings and tracker management',
                     onPressed: () => setState(() => _tab = 3),
@@ -208,6 +267,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           ],
           LayoutBuilder(
             builder: (context, constraints) {
+              if (_tab == 1) return monthPicker;
               final profilePicker = ProfileSelector(
                 compact: true,
                 profiles: widget.profiles,
@@ -433,6 +493,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       transactions: transactions.requireValue,
     );
     final query = _search.text.trim().toLowerCase();
+    final amountQuery = query.replaceAll(RegExp(r'[,\s]'), '');
     final filtered = monthly.where(
       (row) =>
           _tab != 1 ||
@@ -440,7 +501,12 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
               (query.isEmpty ||
                   row.notes.toLowerCase().contains(query) ||
                   (names[row.categoryId]?.toLowerCase().contains(query) ??
-                      false))),
+                      false) ||
+                  (amountQuery.isNotEmpty &&
+                      _money(row.amountMinor)
+                          .toLowerCase()
+                          .replaceAll(RegExp(r'[,\s]'), '')
+                          .contains(amountQuery)))),
     );
     final visible =
         (_tab == 1 && _oldestFirst ? filtered.toList().reversed : filtered)
@@ -703,55 +769,45 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         ),
       if (_tab == 1) ...[
         const SizedBox(height: 16),
-        if (_searching) ...[
-          TextField(
-            controller: _search,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: 'Search transactions',
-              hintText: 'Category or notes',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
-                tooltip: 'Clear search',
-                icon: const Icon(Icons.clear),
-                onPressed: () => setState(() => _search.clear()),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
             for (final type in [null, ...TransactionType.values])
               ChoiceChip(
+                shape: const StadiumBorder(),
+                showCheckmark: false,
                 label: Text(type?.label ?? 'All'),
                 selected: _filter == type,
                 onSelected: (_) => setState(() => _filter = type),
               ),
-            PopupMenuButton<bool>(
-              tooltip: 'Sort transactions',
-              initialValue: _oldestFirst,
-              onSelected: (value) => setState(() => _oldestFirst = value),
-              itemBuilder: (_) => [
-                CheckedPopupMenuItem(
-                  value: false,
-                  checked: !_oldestFirst,
-                  child: const Text('Newest first'),
-                ),
-                CheckedPopupMenuItem(
-                  value: true,
-                  checked: _oldestFirst,
-                  child: const Text('Oldest first'),
-                ),
-              ],
-              icon: const Icon(Icons.tune),
-            ),
           ],
         ),
         const SizedBox(height: 16),
+        if (!_swipeHintDismissed && visible.any(_isDeletable)) ...[
+          Card(
+            key: const Key('swipe-hint'),
+            margin: EdgeInsets.zero,
+            color: semantic.infoContainer,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              leading: Icon(
+                Icons.swipe_left_rounded,
+                color: semantic.onInfoContainer,
+              ),
+              title: Text(
+                'Swipe left to delete. Tap to edit.',
+                style: TextStyle(color: semantic.onInfoContainer),
+              ),
+              trailing: IconButton(
+                tooltip: 'Dismiss hint',
+                icon: Icon(Icons.close, color: semantic.onInfoContainer),
+                onPressed: () => setState(() => _swipeHintDismissed = true),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         if (monthly.isEmpty)
           DashboardEmptyState(
             month: _month,
@@ -845,16 +901,9 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         MediaQuery.sizeOf(context).width >= 390 &&
         MediaQuery.textScalerOf(context).scale(16) <= 20 &&
         amountText.length <= 16;
-    final deleteButton = IconButton(
-      tooltip: 'Delete $title',
-      onPressed:
-          _deleting.contains(transaction.id) || transaction.savingsMonth != null
-          ? null
-          : () => _delete(transaction),
-      icon: const Icon(Icons.delete_outline),
-    );
-    return Card(
-      margin: _tab == 0 ? EdgeInsets.zero : const EdgeInsets.only(bottom: 8),
+    final deletable = _tab == 1 && _isDeletable(transaction);
+    final card = Card(
+      margin: EdgeInsets.zero,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: CategoryAvatar(
@@ -885,23 +934,55 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                 ),
               ),
         trailing: sideAmount
-            ? Row(
+            ? Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [amountLabel, dateLabel],
-                  ),
-                  if (_tab == 1) deleteButton,
-                ],
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [amountLabel, dateLabel],
               )
-            : _tab == 1
-            ? deleteButton
             : null,
       ),
     );
+    if (_tab != 1) return card;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: deletable
+          ? Semantics(
+              customSemanticsActions: {
+                CustomSemanticsAction(label: 'Delete $title'): () =>
+                    _delete(transaction),
+              },
+              child: Dismissible(
+                key: ValueKey('swipe-${transaction.id}'),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) async {
+                  await _delete(transaction);
+                  return false;
+                },
+                background: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 24),
+                      child: Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ),
+                child: card,
+              ),
+            )
+          : card,
+    );
   }
+
+  bool _isDeletable(FinancialTransaction transaction) =>
+      !_deleting.contains(transaction.id) && transaction.savingsMonth == null;
 }
 
 class _LoadError extends StatelessWidget {

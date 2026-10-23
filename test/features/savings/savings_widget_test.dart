@@ -157,7 +157,11 @@ void main() {
             .onTap,
         isNull,
       );
-      expect(tester.widget<IconButton>(deleteButton).onPressed, isNull);
+      final swipe = find.ancestor(
+        of: find.text(note),
+        matching: find.byType(Dismissible),
+      );
+      expect(swipe, findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
     },

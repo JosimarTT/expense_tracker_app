@@ -381,7 +381,7 @@ fonts do not replace this document's tokens or imply seeded user data.
   provide at least 4.5:1 contrast against their containers in both themes
   (light income 5.96:1, light expense 5.57:1; dark 6.79:1 and 5.23:1).
   Existing chart accents and transaction colors are unchanged.
-- Transactions: searchable category/notes, All/Income/Expense/Savings filters,
+- Transactions: searchable category/notes/amount, All/Income/Expense/Savings filters,
   newest/oldest sorting, and Today/Yesterday/calendar-date groups. Category is
   the primary label; notes are secondary. Normal transaction rows place the
   amount and date/time in a right-aligned column, with date/time below amount.
@@ -393,8 +393,22 @@ fonts do not replace this document's tokens or imply seeded user data.
   Large text and long amounts retain a stacked fallback; generated savings
   retain their read-only explanation. Tap-to-edit remains available on Home
   and Transactions for editable entries; saving requires explicit confirmation.
-  Home has no inline delete icons. Transactions retains its discoverable delete
-  icons and confirmation dialog; generated savings cannot be edited or deleted.
+  Home has no inline delete icons. Transactions has none either: delete is a
+  swipe-left gesture (error-container background, delete icon, 24px radius)
+  that opens the confirmation dialog and snaps back until confirmed. Each
+  deletable row also exposes a "Delete <title>" semantic action for assistive
+  tech. A dismissible info hint ("Swipe left to delete. Tap to edit.") shows
+  once per session while deletable rows exist. Generated savings cannot be
+  edited, swiped or deleted.
+- Transactions header: title row with search and sort icon buttons (sort
+  opens a bottom sheet with a check on the active order and shows a dot badge
+  when not newest-first). Tapping search replaces the title with an inline
+  field (back arrow, clear button) so no extra row appears. Search is
+  case-insensitive "contains" over category, notes and amount (currency
+  symbol and separators ignored), within the selected month. Below it sits
+  only the full-width month picker (no profile selector; switch profiles from
+  Home or Profile), then All/Income/Expense/Savings stadium-shaped pills with
+  no checkmark that wrap rather than scroll when space is short.
   Transaction rows use 16px horizontal content padding with no additional
   vertical content padding: retain ListTile's intrinsic vertical spacing and
   touch targets rather than adding height around its existing layout.
