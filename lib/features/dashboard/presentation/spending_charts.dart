@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../profiles/domain/profile.dart';
+import '../../transactions/domain/transaction_filter.dart';
 import '../domain/spending_analytics.dart';
 
 class SpendingOverview extends StatelessWidget {
@@ -242,15 +243,21 @@ class SpendingOverview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: theme.textTheme.titleMedium),
-            if (!compact) Text(DateFormat.yMMMM().format(analytics.month)),
+            if (!compact)
+              Text(
+                analytics.periodLabel ??
+                    DateFormat.yMMMM().format(analytics.month),
+              ),
             if (!compact || !totalFits || entries.isEmpty)
               Text('Total expenses: ${money(analytics.expenseMinor)}'),
             const SizedBox(height: 16),
             if (entries.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Text(
-                  'No expenses this month. Your category breakdown will appear here.',
+                  analytics.periodLabel == null
+                      ? 'No expenses this month. Your category breakdown will appear here.'
+                      : 'No expenses in this period. Your category breakdown will appear here.',
                 ),
               )
             else
@@ -321,7 +328,9 @@ class ExpenseStatsCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    change == null
+                    !analytics.comparePreviousMonth
+                        ? 'Expenses in the selected period.'
+                        : change == null
                         ? 'No expenses recorded in the previous month to compare.'
                         : '${change > 0
                                   ? 'Up'
@@ -364,11 +373,16 @@ class DailySpendingChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final semantic = theme.extension<AppSemanticColors>()!;
+    final frequency = switch (analytics.granularity) {
+      PeriodGranularity.day => 'Daily',
+      PeriodGranularity.week => 'Weekly',
+      PeriodGranularity.month => 'Monthly',
+    };
     final max = analytics.dailyMinor.fold(BigInt.zero, (a, b) => a > b ? a : b);
     final descriptions = [
       for (var index = 0; index < analytics.dailyMinor.length; index++)
         if (analytics.dailyMinor[index] > BigInt.zero)
-          '${DateFormat.MMMd().format(DateTime(analytics.month.year, analytics.month.month, index + 1))}: ${money(analytics.dailyMinor[index])}',
+          '${DateFormat.yMMMd().format(analytics.periodStart(index))}: ${money(analytics.dailyMinor[index])}',
     ];
     return Card(
       key: const Key('daily-spending'),
@@ -378,22 +392,26 @@ class DailySpendingChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Daily trend', style: theme.textTheme.titleMedium),
+            Text('$frequency trend', style: theme.textTheme.titleMedium),
             Text(
-              'Daily expenses - ${DateFormat.yMMMM().format(analytics.month)}',
+              '$frequency expenses - ${analytics.periodLabel ?? DateFormat.yMMMM().format(analytics.month)}',
             ),
             const SizedBox(height: 16),
             if (max == BigInt.zero)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Text('Record an expense to see your daily trend.'),
+                child: Text(
+                  'Record an expense to see your ${frequency.toLowerCase()} trend.',
+                ),
               )
             else ...[
-              Text('Highest daily spending: ${money(max)}'),
+              Text(
+                'Highest ${frequency.toLowerCase()} spending: ${money(max)}',
+              ),
               const SizedBox(height: 12),
               Semantics(
                 container: true,
-                label: 'Daily expenses. ${descriptions.join('. ')}',
+                label: '$frequency expenses. ${descriptions.join('. ')}',
                 child: ExcludeSemantics(
                   child: SizedBox(
                     height: 180,
@@ -401,7 +419,9 @@ class DailySpendingChart extends StatelessWidget {
                       duration: Duration.zero,
                       LineChartData(
                         minX: 1,
-                        maxX: analytics.dailyMinor.length.toDouble(),
+                        maxX: analytics.dailyMinor.length < 2
+                            ? 2
+                            : analytics.dailyMinor.length.toDouble(),
                         minY: 0,
                         maxY: 1,
                         clipData: const FlClipData.all(),
@@ -420,12 +440,30 @@ class DailySpendingChart extends StatelessWidget {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: 7,
+                              interval:
+                                  analytics.granularity == PeriodGranularity.day
+                                  ? 7
+                                  : (analytics.dailyMinor.length / 4)
+                                        .ceilToDouble()
+                                        .clamp(1, double.infinity),
                               reservedSize:
                                   MediaQuery.textScalerOf(context).scale(20) +
                                   8,
                               getTitlesWidget: (value, meta) => Text(
-                                '${value.toInt()}',
+                                value < 1 || value > analytics.dailyMinor.length
+                                    ? ''
+                                    : analytics.granularity ==
+                                          PeriodGranularity.day
+                                    ? '${analytics.periodStart(value.toInt() - 1).day}'
+                                    : (analytics.granularity ==
+                                                  PeriodGranularity.month
+                                              ? DateFormat.yMMM()
+                                              : DateFormat.MMMd())
+                                          .format(
+                                            analytics.periodStart(
+                                              value.toInt() - 1,
+                                            ),
+                                          ),
                                 style: theme.textTheme.labelSmall,
                               ),
                             ),
@@ -436,7 +474,7 @@ class DailySpendingChart extends StatelessWidget {
                             getTooltipItems: (spots) => [
                               for (final spot in spots)
                                 LineTooltipItem(
-                                  'Day ${spot.x.toInt()}\n${money(analytics.dailyMinor[spot.x.toInt() - 1])}',
+                                  '${DateFormat.yMMMd().format(analytics.periodStart(spot.x.toInt() - 1))}\n${money(analytics.dailyMinor[spot.x.toInt() - 1])}',
                                   TextStyle(color: theme.colorScheme.onSurface),
                                 ),
                             ],

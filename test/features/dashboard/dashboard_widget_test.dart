@@ -12,6 +12,7 @@ import 'package:expense_tracker_app/features/profiles/data/local_profile_reposit
 import 'package:expense_tracker_app/features/profiles/domain/profile.dart';
 import 'package:expense_tracker_app/features/transactions/data/repositories/local_transaction_repository.dart';
 import 'package:expense_tracker_app/features/transactions/domain/entities/financial_transaction.dart';
+import 'package:expense_tracker_app/features/transactions/presentation/providers/transaction_scope_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -156,6 +157,20 @@ void main() {
     expect(rects[0].right, lessThan(rects[1].left));
     expect(rects[1].right, lessThan(rects[2].left));
     expect(rects[2].right, lessThanOrEqualTo(390));
+    await close(tester);
+  });
+
+  testWidgets('Changing month keeps the content without a spinner', (
+    tester,
+  ) async {
+    await tester.runAsync(() => save('Income', TransactionType.income, 1000));
+    await open(tester);
+    await tester.tap(find.byTooltip('Previous month'));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byKey(const ValueKey('summary-savings')), findsOneWidget);
+    await settle(tester);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     await close(tester);
   });
 
@@ -720,6 +735,231 @@ void main() {
     },
   );
 
+  testWidgets('Date filter: all time, custom range, back to month and paging', (
+    tester,
+  ) async {
+    final repository = LocalTransactionRepository(db);
+    Future<void> saveAt(String id, DateTime at) => repository.save(
+      FinancialTransaction(
+        id: id,
+        profileId: 'a',
+        notes: id,
+        amountMinor: 100,
+        type: TransactionType.expense,
+        categoryId: 'groceries',
+        occurredAt: at,
+      ),
+    );
+    await tester.runAsync(() async {
+      await save('This month', TransactionType.expense, 100, day: 1);
+      await saveAt('Last year', DateTime(today.year - 1, 3, 10, 9));
+      await saveAt('Range start', DateTime(today.year - 2, 5, 1, 0, 0));
+      await saveAt('Range end', DateTime(today.year - 2, 5, 3, 23, 59));
+      await saveAt('Range after', DateTime(today.year - 2, 5, 4, 0, 0));
+    });
+    await open(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('This month'), findsOneWidget);
+    expect(find.text('Last year'), findsNothing);
+
+    await tester.tap(find.byTooltip('Filter and sort transactions'));
+    await settle(tester);
+    expect(find.text('Show 1 transaction'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'All time'));
+    await settle(tester);
+    expect(find.text('Show 5 transactions'), findsOneWidget);
+    await tester.tap(find.text('Show 5 transactions'));
+    await settle(tester);
+    expect(find.text('All time'), findsOneWidget);
+    expect(find.byTooltip('Previous month'), findsNothing);
+    expect(find.text('Last year'), findsOneWidget);
+    expect(find.text('This month'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold).first),
+    );
+    container
+        .read(transactionScopeProvider('a').notifier)
+        .setDates(
+          DateScope.custom(
+            DateTime(today.year - 2, 5, 3),
+            DateTime(today.year - 2, 5, 1),
+          ),
+        );
+    await settle(tester);
+    expect(find.text('Range start'), findsOneWidget);
+    expect(find.text('Range end'), findsOneWidget);
+    expect(find.text('Range after'), findsNothing);
+    expect(find.text('Last year'), findsNothing);
+    expect(find.textContaining(' – '), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Back to monthly view'));
+    await settle(tester);
+    expect(find.text('This month'), findsOneWidget);
+    expect(find.text('Range start'), findsNothing);
+    expect(find.byTooltip('Previous month'), findsOneWidget);
+    await close(tester);
+  });
+
+  testWidgets('Transactions pages long histories with Load more', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      for (var i = 0; i < 105; i++) {
+        await save('Row $i', TransactionType.expense, 100 + i);
+      }
+    });
+    await open(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Dismiss hint'));
+    await tester.pumpAndSettle();
+    final more = find.text('Load more');
+    await tester.scrollUntilVisible(
+      more,
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Row 99', skipOffstage: false), findsNothing);
+    await tester.tap(more);
+    await settle(tester);
+    expect(find.text('Load more'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Row 99'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await close(tester);
+  });
+
+  testWidgets(
+    'Category choices filter SQL results, counts and archived history',
+    (tester) async {
+      await tester.runAsync(() async {
+        await save('Food purchase', TransactionType.expense, 100);
+        await save('Monthly pay', TransactionType.income, 5000);
+        await LocalTransactionRepository(db).save(
+          FinancialTransaction(
+            id: 'old-meal',
+            profileId: 'a',
+            notes: 'Old meal',
+            amountMinor: 200,
+            type: TransactionType.expense,
+            categoryId: 'dining',
+            occurredAt: DateTime(today.year, today.month, 2),
+          ),
+        );
+        await LocalProfileRepository(db)
+            .setArchived(profileId: 'a', categoryId: 'dining', archived: true);
+      });
+      await open(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+      await settle(tester);
+      await tester.tap(find.byTooltip('Filter and sort transactions'));
+      await settle(tester);
+      expect(find.text('Show 3 transactions'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('category-filter-dining')),
+        findsNothing,
+      );
+      final groceries = find.byKey(const ValueKey('category-filter-groceries'));
+      await tester.ensureVisible(groceries);
+      await tester.pumpAndSettle();
+      await tester.tap(groceries);
+      await settle(tester);
+      expect(find.text('Show 1 transaction'), findsOneWidget);
+      await tester.ensureVisible(find.text('Show archived'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show archived'));
+      await settle(tester);
+      final dining = find.byKey(const ValueKey('category-filter-dining'));
+      await tester.ensureVisible(dining);
+      await tester.pumpAndSettle();
+      await tester.tap(dining);
+      await settle(tester);
+      expect(find.text('Show 2 transactions'), findsOneWidget);
+      await tester.tap(find.text('Show 2 transactions'));
+      await settle(tester);
+      expect(find.text('Old meal'), findsOneWidget);
+      expect(find.text('Food purchase'), findsOneWidget);
+      expect(find.text('Monthly pay'), findsNothing);
+      expect(find.text('2'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
+      await settle(tester);
+      expect(find.text('Monthly pay'), findsOneWidget);
+      expect(find.text('Food purchase'), findsNothing);
+      expect(find.text('Old meal'), findsNothing);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(DashboardPage)),
+      );
+      expect(
+        container.read(transactionScopeProvider('a')).filter.categoryIds,
+        isEmpty,
+      );
+      await close(tester);
+    },
+  );
+
+  testWidgets(
+    'Filter sheet sorts, filters by type, counts, resets and badges',
+    (tester) async {
+      await tester.runAsync(() async {
+        await save('Coffee', TransactionType.expense, 100, day: 1);
+        await save('Market', TransactionType.expense, 300, day: 2);
+        await save('Salary', TransactionType.income, 5000, day: 3);
+      });
+      await open(tester);
+      await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+      await tester.pumpAndSettle();
+      expect(find.byType(Badge), findsOneWidget);
+      expect(find.text('1'), findsNothing);
+
+      await tester.tap(find.byTooltip('Filter and sort transactions'));
+      await settle(tester);
+      expect(find.text('Filter & sort'), findsOneWidget);
+      expect(find.text('Show 3 transactions'), findsOneWidget);
+      final reset = find.widgetWithText(TextButton, 'Reset');
+      expect(tester.widget<TextButton>(reset).onPressed, isNull);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.widgetWithText(ChoiceChip, 'Expense'),
+        ),
+      );
+      await settle(tester);
+      expect(find.text('Show 2 transactions'), findsOneWidget);
+      await tester.tap(find.text('Oldest first'));
+      await settle(tester);
+      expect(tester.widget<TextButton>(reset).onPressed, isNotNull);
+
+      await tester.tap(reset);
+      await settle(tester);
+      expect(find.text('Show 3 transactions'), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.widgetWithText(ChoiceChip, 'Income'),
+        ),
+      );
+      await settle(tester);
+      expect(find.text('Show 1 transaction'), findsOneWidget);
+      await tester.tap(find.text('Show 1 transaction'));
+      await settle(tester);
+      expect(find.text('Salary'), findsWidgets);
+      expect(find.text('Coffee'), findsNothing);
+      expect(find.text('1'), findsOneWidget);
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Income'))
+            .selected,
+        isTrue,
+      );
+      await close(tester);
+    },
+  );
+
   testWidgets(
     'Transactions searches category and notes, sorts, clears, and keeps type filters',
     (tester) async {
@@ -757,11 +997,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Sort transactions'));
+      await tester.tap(find.byTooltip('Filter and sort transactions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Oldest first'));
       await tester.pumpAndSettle();
-      expect(find.byType(Badge), findsOneWidget);
+      await tester.tap(find.text('Show 3 transactions'));
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
       await tester.tap(find.byTooltip('Dismiss hint'));
       await tester.pumpAndSettle();
       final first = tester.widgetList<ListTile>(find.byType(ListTile)).first;
@@ -791,7 +1033,7 @@ void main() {
       await tester.pumpAndSettle();
       final title = find.text('Transactions').first;
       final searchButton = find.byTooltip('Search transactions');
-      final sortButton = find.byTooltip('Sort transactions');
+      final sortButton = find.byTooltip('Filter and sort transactions');
       expect(
         tester.getCenter(searchButton).dy,
         closeTo(tester.getCenter(title).dy, 1),
@@ -931,6 +1173,209 @@ void main() {
       await close(tester);
     },
   );
+
+  testWidgets('Stats shares filters and scopes, but leaves Home independent', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await save('Food', TransactionType.expense, 100);
+      await save('Pay', TransactionType.income, 2000);
+      await save('Saved', TransactionType.savings, 300);
+      await LocalTransactionRepository(db).save(
+        FinancialTransaction(
+          id: 'old-food',
+          profileId: 'a',
+          notes: 'Old food',
+          amountMinor: 500,
+          type: TransactionType.expense,
+          categoryId: 'groceries',
+          occurredAt: DateTime(today.year - 1, 2, 2),
+        ),
+      );
+    });
+    await open(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+    await settle(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(DashboardPage)),
+    );
+    final notifier = container.read(transactionScopeProvider('a').notifier);
+    notifier.setDates(const DateScope.allTime());
+    notifier.setCategories({'groceries'});
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+    await settle(tester);
+    expect(find.text('All time'), findsWidgets);
+    expect(find.byTooltip('Filter statistics'), findsOneWidget);
+    expect(
+      tester
+          .widget<ExpenseStatsCard>(find.byType(ExpenseStatsCard))
+          .analytics
+          .expenseMinor,
+      BigInt.from(600),
+    );
+    expect(find.textContaining('vs previous month'), findsNothing);
+    notifier.setQuery('Old food');
+    await settle(tester);
+    expect(
+      tester
+          .widget<ExpenseStatsCard>(find.byType(ExpenseStatsCard))
+          .analytics
+          .expenseMinor,
+      BigInt.from(500),
+    );
+    notifier.setQuery('');
+    await settle(tester);
+    await tester.scrollUntilVisible(find.byType(DailySpendingChart), 200);
+    expect(find.text('Monthly trend'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('monthly-summary')),
+      200,
+    );
+    expect(find.text(r'Income: $0.00'), findsOneWidget);
+    expect(find.text(r'Expenses: $6.00'), findsOneWidget);
+    expect(find.text('Monthly budget'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Budget targets are available in Month view only.'),
+      200,
+    );
+    notifier.setDates(
+      DateScope.custom(
+        DateTime(today.year, today.month),
+        DateTime(today.year, today.month + 2, 0),
+      ),
+    );
+    await settle(tester);
+    await tester.scrollUntilVisible(find.byType(DailySpendingChart), -200);
+    expect(find.text('Weekly trend'), findsOneWidget);
+    notifier.setDates(DateScope.month(today));
+    notifier.setCategories(const []);
+    notifier.setType(TransactionType.income);
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('monthly-summary')),
+      200,
+    );
+    expect(find.text(r'Income: $20.00'), findsOneWidget);
+    expect(find.text(r'Expenses: $0.00'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Budget progress — full month, filters not applied.'),
+      200,
+    );
+    await tester.tap(find.byKey(const Key('dashboard-tab-0')));
+    await settle(tester);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('summary-expenses')),
+        matching: find.text(r'-$1.00'),
+      ),
+      findsOneWidget,
+    );
+    await close(tester);
+  });
+
+  testWidgets('Stats can edit shared filters and month without changing Home', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await save('Income', TransactionType.income, 1000);
+      await save('Expense', TransactionType.expense, 250);
+    });
+    await open(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Filter statistics'));
+    await settle(tester);
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Income'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
+    await settle(tester);
+    await tester.tap(find.text('Show 1 transaction'));
+    await settle(tester);
+    expect(
+      tester
+          .widget<ExpenseStatsCard>(find.byType(ExpenseStatsCard))
+          .analytics
+          .expenseMinor,
+      BigInt.zero,
+    );
+    await tester.tap(find.byTooltip('Previous month'));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-1')));
+    await settle(tester);
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Income'))
+          .selected,
+      isTrue,
+    );
+    await tester.tap(find.byKey(const Key('dashboard-tab-0')));
+    await settle(tester);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('summary-expenses')),
+        matching: find.text(r'-$2.50'),
+      ),
+      findsOneWidget,
+    );
+    await close(tester);
+  });
+
+  testWidgets('Stats search and savings totals respect the shared scope', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await save('Coffee', TransactionType.expense, 100);
+      await save('Other expense', TransactionType.expense, 400);
+      await save('Savings transfer', TransactionType.savings, 700);
+    });
+    await open(tester);
+    await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Search statistics'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Coffee');
+    await settle(tester);
+    expect(
+      tester
+          .widget<ExpenseStatsCard>(find.byType(ExpenseStatsCard))
+          .analytics
+          .expenseMinor,
+      BigInt.from(100),
+    );
+    await tester.tap(find.byTooltip('Close search'));
+    await settle(tester);
+    expect(
+      tester
+          .widget<ExpenseStatsCard>(find.byType(ExpenseStatsCard))
+          .analytics
+          .expenseMinor,
+      BigInt.from(500),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(DashboardPage)),
+    );
+    container
+        .read(transactionScopeProvider('a').notifier)
+        .setType(TransactionType.savings);
+    await settle(tester);
+    expect(
+      tester
+          .widget<ExpenseStatsCard>(find.byType(ExpenseStatsCard))
+          .analytics
+          .expenseMinor,
+      BigInt.zero,
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('monthly-summary')),
+      200,
+    );
+    expect(find.text(r'Savings: $7.00'), findsOneWidget);
+    expect(find.text(r'Expenses: $0.00'), findsOneWidget);
+    await close(tester);
+  });
 
   testWidgets(
     'Empty Stats uses honest placeholders and no fabricated charts or comparison',

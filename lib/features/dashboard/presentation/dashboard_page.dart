@@ -20,6 +20,11 @@ import '../../profiles/presentation/welcome_view.dart';
 import '../../schedules/presentation/schedule_processor.dart';
 import '../../schedules/presentation/schedules_page.dart';
 import '../../transactions/domain/entities/financial_transaction.dart';
+import '../../transactions/domain/transaction_filter.dart';
+import '../../transactions/presentation/providers/transaction_scope_provider.dart';
+import 'transaction_filter_sheet.dart';
+import 'stats_analytics_panel.dart';
+import 'type_filter_pills.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../../transactions/presentation/transaction_dialog.dart';
 import '../domain/spending_analytics.dart';
@@ -105,36 +110,34 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   final _deleting = <String>{};
   bool _savingAutomatic = false;
   int _tab = 0;
-  TransactionType? _filter;
   bool _searching = false;
-  bool _oldestFirst = false;
+  // Shown while the next month's window loads, so month navigation never
+  // flashes a spinner.
+  List<FinancialTransaction>? _lastTransactions;
+  TransactionPage? _lastFiltered;
+  static const _pageSize = 100;
+  int _limit = _pageSize;
+  TransactionFilter? _pagedFilter;
+  TransactionSort? _pagedSort;
   bool _swipeHintDismissed = false;
   final _search = TextEditingController();
 
-  Future<void> _showSortSheet() => showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    builder: (sheetContext) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (label, oldest) in [
-            ('Newest first', false),
-            ('Oldest first', true),
-          ])
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: Text(label),
-              trailing: _oldestFirst == oldest ? const Icon(Icons.check) : null,
-              onTap: () {
-                setState(() => _oldestFirst = oldest);
-                Navigator.pop(sheetContext);
-              },
-            ),
-        ],
-      ),
-    ),
-  );
+  @override
+  void initState() {
+    super.initState();
+    final query = ref
+        .read(transactionScopeProvider(widget.profile.id))
+        .filter
+        .query;
+    _search.text = query;
+    _searching = query.isNotEmpty;
+  }
+
+  TransactionScopeNotifier get _scopeNotifier =>
+      ref.read(transactionScopeProvider(widget.profile.id).notifier);
+
+  Future<void> _showFilterSheet() =>
+      showTransactionFilterSheet(context, profileId: widget.profile.id);
 
   @override
   void dispose() {
@@ -143,7 +146,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   }
 
   String _analyticsMoney(BigInt amount) =>
-      amount > BigInt.from(9223372036854775807)
+      amount.abs() > BigInt.from(9223372036854775807)
       ? 'Total exceeds supported range'
       : _money(amount.toInt());
 
@@ -161,49 +164,91 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   }
 
   Widget _header() {
-    final monthPicker = Material(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(28),
-      child: Row(
-        mainAxisSize: _tab == 1 ? MainAxisSize.max : MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'Previous month',
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => setState(
-              () => _month = DateTime(_month.year, _month.month - 1),
+    final scope = ref.watch(transactionScopeProvider(widget.profile.id));
+    final dates = scope.dates;
+    final detailed = _tab == 1 || _tab == 2;
+    final month = detailed && dates.mode == DateRangeMode.month
+        ? dates.month!
+        : _month;
+    void shift(int delta) {
+      final next = DateTime(month.year, month.month + delta);
+      if (detailed) {
+        _scopeNotifier.setDates(DateScope.month(next));
+      } else {
+        setState(() => _month = next);
+      }
+    }
+
+    final theme = Theme.of(context);
+    final monthPicker = detailed && dates.mode != DateRangeMode.month
+        ? Material(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            child: Row(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Icon(Icons.date_range),
+                ),
+                Expanded(
+                  child: Text(
+                    dateScopeLabel(dates),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Back to monthly view',
+                  icon: const Icon(Icons.close),
+                  onPressed: () =>
+                      _scopeNotifier.setDates(DateScope.month(DateTime.now())),
+                ),
+              ],
             ),
-          ),
-          Flexible(
-            fit: _tab == 1 ? FlexFit.tight : FlexFit.loose,
-            child: Text(
-              DateFormat.yMMM().format(_month),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelLarge,
+          )
+        : Material(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            child: Row(
+              mainAxisSize: detailed ? MainAxisSize.max : MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Previous month',
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => shift(-1),
+                ),
+                Flexible(
+                  fit: detailed ? FlexFit.tight : FlexFit.loose,
+                  child: Text(
+                    DateFormat.yMMM().format(month),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Next month',
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => shift(1),
+                ),
+              ],
             ),
-          ),
-          IconButton(
-            tooltip: 'Next month',
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => setState(
-              () => _month = DateTime(_month.year, _month.month + 1),
-            ),
-          ),
-        ],
-      ),
-    );
+          );
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_tab == 1 && _searching) ...[
+          if (detailed && _searching) ...[
             TextField(
               controller: _search,
               autofocus: true,
-              onChanged: (_) => setState(() {}),
+              onChanged: (value) {
+                _scopeNotifier.setQuery(value);
+                setState(() {});
+              },
               decoration: InputDecoration(
                 hintText: 'Category, notes or amount',
                 prefixIcon: IconButton(
@@ -212,6 +257,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                   onPressed: () => setState(() {
                     _searching = false;
                     _search.clear();
+                    _scopeNotifier.setQuery('');
                   }),
                 ),
                 suffixIcon: _search.text.isEmpty
@@ -219,7 +265,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                     : IconButton(
                         tooltip: 'Clear search',
                         icon: const Icon(Icons.clear),
-                        onPressed: () => setState(_search.clear),
+                        onPressed: () => setState(() {
+                          _search.clear();
+                          _scopeNotifier.setQuery('');
+                        }),
                       ),
               ),
             ),
@@ -239,20 +288,30 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                     ],
                   ),
                 ),
-                if (_tab == 1) ...[
+                if (detailed) ...[
                   IconButton(
-                    tooltip: 'Search transactions',
+                    tooltip: _tab == 2
+                        ? 'Search statistics'
+                        : 'Search transactions',
                     icon: const Icon(Icons.search),
                     onPressed: () => setState(() => _searching = true),
                   ),
-                  Badge(
-                    isLabelVisible: _oldestFirst,
-                    smallSize: 8,
+                  Badge.count(
+                    count: ref
+                        .watch(transactionScopeProvider(widget.profile.id))
+                        .activeCount,
+                    isLabelVisible:
+                        ref
+                            .watch(transactionScopeProvider(widget.profile.id))
+                            .activeCount >
+                        0,
                     alignment: const AlignmentDirectional(28, 8),
                     child: IconButton(
-                      tooltip: 'Sort transactions',
+                      tooltip: _tab == 2
+                          ? 'Filter statistics'
+                          : 'Filter and sort transactions',
                       icon: const Icon(Icons.tune),
-                      onPressed: _showSortSheet,
+                      onPressed: _showFilterSheet,
                     ),
                   ),
                 ] else
@@ -267,7 +326,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           ],
           LayoutBuilder(
             builder: (context, constraints) {
-              if (_tab == 1) return monthPicker;
+              if (detailed) return monthPicker;
               final profilePicker = ProfileSelector(
                 compact: true,
                 profiles: widget.profiles,
@@ -389,26 +448,33 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
   @override
   Widget build(BuildContext context) {
     final id = widget.profile.id;
+    final scope = ref.watch(transactionScopeProvider(id));
+    final budgetMonth = _tab == 2 && scope.dates.mode == DateRangeMode.month
+        ? scope.dates.month!
+        : _month;
     final categories = ref.watch(categoriesProvider(id));
-    final transactions = ref.watch(transactionsProvider(id));
+    final window = (profileId: id, month: budgetMonth);
+    final transactions = ref.watch(monthWindowTransactionsProvider(window));
     final budgets = ref.watch(budgetsProvider(id));
     if (categories.hasError || transactions.hasError || budgets.hasError) {
       return _LoadError(
         message: 'Could not load this profile. Try again.',
         retry: () {
           ref.invalidate(categoriesProvider(id));
-          ref.invalidate(transactionsProvider(id));
+          ref.invalidate(monthWindowTransactionsProvider(window));
           ref.invalidate(budgetsProvider(id));
         },
       );
     }
-    if (!categories.hasValue || !transactions.hasValue || !budgets.hasValue) {
+    if (transactions.hasValue) _lastTransactions = transactions.requireValue;
+    final loaded = _lastTransactions;
+    if (!categories.hasValue || loaded == null || !budgets.hasValue) {
       return const Center(child: CircularProgressIndicator());
     }
-    final start = _month.toUtc();
-    final end = DateTime(_month.year, _month.month + 1).toUtc();
+    final start = budgetMonth.toUtc();
+    final end = DateTime(budgetMonth.year, budgetMonth.month + 1).toUtc();
     final monthly =
-        transactions.requireValue
+        loaded
             .where(
               (row) =>
                   !row.occurredAt.isBefore(start) &&
@@ -479,7 +545,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       barrierDismissible: false,
       builder: (_) => BudgetDialog(
         profileId: id,
-        month: _month,
+        month: budgetMonth,
         categories: categories.requireValue,
         existing: rule,
       ),
@@ -490,31 +556,36 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
     final analytics = SpendingAnalytics(
       profileId: id,
       month: _month,
-      transactions: transactions.requireValue,
+      transactions: loaded,
     );
-    final query = _search.text.trim().toLowerCase();
-    final amountQuery = query.replaceAll(RegExp(r'[,\s]'), '');
-    final filtered = monthly.where(
-      (row) =>
-          _tab != 1 ||
-          ((_filter == null || row.type == _filter) &&
-              (query.isEmpty ||
-                  row.notes.toLowerCase().contains(query) ||
-                  (names[row.categoryId]?.toLowerCase().contains(query) ??
-                      false) ||
-                  (amountQuery.isNotEmpty &&
-                      _money(row.amountMinor)
-                          .toLowerCase()
-                          .replaceAll(RegExp(r'[,\s]'), '')
-                          .contains(amountQuery)))),
-    );
-    final visible =
-        (_tab == 1 && _oldestFirst ? filtered.toList().reversed : filtered)
-            .take(_tab == 0 ? 3 : monthly.length)
-            .toList();
+    var visible = monthly.take(3).toList();
+    var hasMore = false;
+    var listLoading = false;
+    if (_tab == 1) {
+      final ranged = scope.ranged;
+      if (_pagedFilter != ranged || _pagedSort != scope.sort) {
+        _pagedFilter = ranged;
+        _pagedSort = scope.sort;
+        _limit = _pageSize;
+      }
+      final result = ref.watch(
+        filteredTransactionsProvider((
+          profileId: id,
+          filter: ranged,
+          sort: scope.sort,
+          limit: _limit,
+        )),
+      );
+      if (result.hasValue) _lastFiltered = result.requireValue;
+      listLoading = _lastFiltered == null;
+      visible = _lastFiltered?.items ?? const [];
+      hasMore = _lastFiltered?.hasMore ?? false;
+    }
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final content = <Widget>[
-      if ((_tab == 0 || _tab == 2) && summary == null)
+      if ((_tab == 0 ||
+              (_tab == 2 && scope.dates.mode == DateRangeMode.month)) &&
+          summary == null)
         const Text(
           'Monthly totals exceed the supported range. Edit or delete an entry to calculate totals.',
         ),
@@ -524,7 +595,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         const SizedBox(height: 16),
         SpendingOverview(
           compact: true,
-          onShowAll: () => setState(() => _tab = 2),
+          onShowAll: () {
+            _scopeNotifier.setDates(DateScope.month(_month));
+            setState(() => _tab = 2);
+          },
           analytics: analytics,
           categories: categories.requireValue,
           money: _analyticsMoney,
@@ -591,134 +665,81 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         ),
       ],
       if (_tab == 2) ...[
-        ExpenseStatsCard(analytics: analytics, money: _analyticsMoney),
-        const SizedBox(height: 16),
-        SpendingOverview(
-          title: 'Expenses by category',
-          analytics: analytics,
+        StatsAnalyticsPanel(
+          key: ValueKey(id),
+          profile: widget.profile,
           categories: categories.requireValue,
           money: _analyticsMoney,
         ),
-        const SizedBox(height: 16),
-        DailySpendingChart(analytics: analytics, money: _analyticsMoney),
-        const SizedBox(height: 16),
-        Card(
-          color: semantic.incomeContainer,
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                const Icon(Icons.spa_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    analytics.expenseCount == 0
-                        ? 'A fresh start. Record an expense to discover your spending patterns.'
-                        : '${analytics.expenseCount} ${analytics.expenseCount == 1 ? 'expense' : 'expenses'} recorded this month. Every entry helps you see the bigger picture.',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        if (summary != null) ...[
-          Card(
-            key: const Key('monthly-summary'),
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Monthly summary (${widget.profile.currencyCode})',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Income: ${_money(summary.incomeMinor)}'),
-                  Text('Expenses: ${_money(summary.expenseMinor)}'),
-                  Text('Savings: ${_money(summary.savingsMinor)}'),
-                  const SizedBox(height: 8),
-                  const Text('Remaining to allocate'),
-                  Text(
-                    _money(summary.remainingMinor),
-                    key: const Key('remaining-amount'),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-        Text(
-          'Monthly budget',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        TextButton(
-          onPressed: canEditBudget ? editBudget : null,
-          child: Text(budgetLabel),
-        ),
-        const SizedBox(height: 16),
-        if (rule == null)
-          const Text(
-            'No budget saved for this month. Set your allocation to see progress.',
-          )
-        else if (summary != null) ...[
-          if (summary.incomeMinor == 0)
-            const Text(
-              'No income this month. Budget limits are zero until income is recorded.',
-            ),
-          for (final progress in summary.buckets) ...[
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${progress.bucket.name} (${progress.bucket.allocationBps / 100}%)',
-                    ),
-                    if (progress.bucket.id == 'savings') ...[
-                      Text('Savings target: ${_money(progress.targetMinor)}'),
-                      Text('Saved: ${_money(progress.spentMinor)}'),
-                      LinearProgressIndicator(
-                        value: progress.progress,
-                        semanticsLabel: 'Savings progress',
-                      ),
-                    ] else ...[
-                      Text(
-                        '${_money(progress.spentMinor)} of ${_money(progress.targetMinor)}',
-                      ),
-                      LinearProgressIndicator(
-                        value: progress.progress,
-                        semanticsLabel: '${progress.bucket.name} spending',
-                        color: progress.isOverBudget
-                            ? Theme.of(context).colorScheme.error
-                            : null,
-                      ),
-                      if (progress.isOverBudget)
-                        Text(
-                          'Over budget by ${_money(progress.spentMinor - progress.targetMinor)}',
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+        if (scope.dates.mode == DateRangeMode.month) ...[
           Text(
-            'Unallocated expenses: ${_money(summary.unallocatedExpenseMinor)}',
+            'Monthly budget',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
+          const Text('Budget progress — full month, filters not applied.'),
+          TextButton(
+            onPressed: canEditBudget ? editBudget : null,
+            child: Text(budgetLabel),
+          ),
+          const SizedBox(height: 16),
+          if (rule == null)
+            const Text(
+              'No budget saved for this month. Set your allocation to see progress.',
+            )
+          else if (summary != null) ...[
+            if (summary.incomeMinor == 0)
+              const Text(
+                'No income this month. Budget limits are zero until income is recorded.',
+              ),
+            for (final progress in summary.buckets) ...[
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${progress.bucket.name} (${progress.bucket.allocationBps / 100}%)',
+                      ),
+                      if (progress.bucket.id == 'savings') ...[
+                        Text('Savings target: ${_money(progress.targetMinor)}'),
+                        Text('Saved: ${_money(progress.spentMinor)}'),
+                        LinearProgressIndicator(
+                          value: progress.progress,
+                          semanticsLabel: 'Savings progress',
+                        ),
+                      ] else ...[
+                        Text(
+                          '${_money(progress.spentMinor)} of ${_money(progress.targetMinor)}',
+                        ),
+                        LinearProgressIndicator(
+                          value: progress.progress,
+                          semanticsLabel: '${progress.bucket.name} spending',
+                          color: progress.isOverBudget
+                              ? Theme.of(context).colorScheme.error
+                              : null,
+                        ),
+                        if (progress.isOverBudget)
+                          Text(
+                            'Over budget by ${_money(progress.spentMinor - progress.targetMinor)}',
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text(
+              'Unallocated expenses: ${_money(summary.unallocatedExpenseMinor)}',
+            ),
+          ],
+          if (!canEditBudget)
+            const Text(
+              'This rule has custom buckets. The current editor supports Needs/Wants/Savings only and will not overwrite it.',
+            ),
         ],
-        if (!canEditBudget)
-          const Text(
-            'This rule has custom buckets. The current editor supports Needs/Wants/Savings only and will not overwrite it.',
-          ),
       ],
       if (_tab == 0)
         Card(
@@ -739,7 +760,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                     ),
                     if (monthly.isNotEmpty)
                       TextButton(
-                        onPressed: () => setState(() => _tab = 1),
+                        onPressed: () {
+                          _scopeNotifier.setDates(DateScope.month(_month));
+                          setState(() => _tab = 1);
+                        },
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: Size.zero,
@@ -774,12 +798,10 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           runSpacing: 8,
           children: [
             for (final type in [null, ...TransactionType.values])
-              ChoiceChip(
-                shape: const StadiumBorder(),
-                showCheckmark: false,
-                label: Text(type?.label ?? 'All'),
-                selected: _filter == type,
-                onSelected: (_) => setState(() => _filter = type),
+              TransactionTypePill(
+                type: type,
+                selected: scope.filter.type == type,
+                onSelected: () => _scopeNotifier.setType(type),
               ),
           ],
         ),
@@ -808,13 +830,26 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           ),
           const SizedBox(height: 16),
         ],
-        if (monthly.isEmpty)
-          DashboardEmptyState(
-            month: _month,
-            onAdd: canAdd ? addTransaction : null,
-          ),
-        if (monthly.isNotEmpty && visible.isEmpty)
-          const Text('No transactions match your filters.'),
+        if (!listLoading && visible.isEmpty)
+          if (scope.dates.mode == DateRangeMode.month &&
+              ref
+                      .watch(
+                        filteredCountProvider((
+                          profileId: id,
+                          filter: TransactionFilter().withRange(
+                            scope.dates.start,
+                            scope.dates.end,
+                          ),
+                        )),
+                      )
+                      .value ==
+                  0)
+            DashboardEmptyState(
+              month: scope.dates.month!,
+              onAdd: canAdd ? addTransaction : null,
+            )
+          else
+            const Text('No transactions match your filters.'),
         for (var index = 0; index < visible.length; index++) ...[
           if (_tab == 1 &&
               (index == 0 ||
@@ -830,6 +865,15 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
               ),
             ),
           _transactionCard(visible[index], categories.requireValue, names),
+        ],
+        if (hasMore) ...[
+          const SizedBox(height: 16),
+          Center(
+            child: OutlinedButton(
+              onPressed: () => setState(() => _limit += _pageSize),
+              child: const Text('Load more'),
+            ),
+          ),
         ],
       ],
     ];
@@ -850,7 +894,14 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       ),
       bottomNavigationBar: DashboardBottomBar(
         selected: _tab,
-        onSelected: (value) => setState(() => _tab = value),
+        onSelected: (value) {
+          if (value == 1 &&
+              _tab == 0 &&
+              scope.dates.mode == DateRangeMode.month) {
+            _scopeNotifier.setDates(DateScope.month(_month));
+          }
+          setState(() => _tab = value);
+        },
         onAdd: canAdd ? addTransaction : null,
       ),
     );

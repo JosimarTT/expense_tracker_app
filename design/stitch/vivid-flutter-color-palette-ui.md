@@ -400,27 +400,83 @@ fonts do not replace this document's tokens or imply seeded user data.
   tech. A dismissible info hint ("Swipe left to delete. Tap to edit.") shows
   once per session while deletable rows exist. Generated savings cannot be
   edited, swiped or deleted.
-- Transactions header: title row with search and sort icon buttons (sort
-  opens a bottom sheet with a check on the active order and shows a dot badge
-  when not newest-first). Tapping search replaces the title with an inline
+- Transactions header: title row with search and filter icon buttons. The
+  filter button (tune icon) opens a "Filter & sort" bottom sheet (32px top
+  radius, drag handle, max width 560) with a Reset text action, Sort by
+  (Newest/Oldest first) and Type stadium pills, and a full-width "Show N
+  transactions" button that closes it. The button shows a count badge for
+  active sheet choices (type, categories, non-default sort). Choices live in a
+  per-profile scope shared with Stats; Home keeps its own month
+  picker and its month is carried over only by "View all" and by switching
+  from Home to Transactions while the scope is a single month. Type pills (the
+  row under the month picker and the sheet's Type section share one widget and
+  one value) are single-select; a selected type uses its semantic colors with a
+  1px foreground border: Expense expenseContainer/onExpenseContainer, Income
+  incomeContainer/onIncomeContainer, Savings infoContainer/onInfoContainer;
+  "All" and unselected pills keep the default chip style.
+  The Categories section shows every matching category in alphabetically sorted,
+  wrapping multi-select stadium pills, with no search box or collapsed subset.
+  Selected pills use the category's existing color, black or white text chosen
+  for at least 4.5:1 contrast, and a matching checkmark; unselected pills use the
+  default chip surface with the category icon in its color. "Select all" selects
+  the visible categories; "Clear" removes the category restriction (an empty
+  selection means all categories). "Show archived" defaults off and reveals
+  archived categories with an "(archived)" suffix, without hiding their
+  transactions when no category restriction is active.
+  Categories of other transaction types are hidden. Changing Type or turning
+  off "Show archived" clears only category selections that become hidden.
+  The archived visibility preference is retained per profile and reset by Reset;
+  it does not count as an active transaction filter.
+  Cap the sheet content at 85% of viewport height with 16px content insets;
+  its controls scroll vertically while the title/Reset and results button stay
+  visible, including at 320px and 2x text scale.
+  The sheet's Date
+  section has Month, All time and Custom range pills (the range is picked with
+  the Material date range picker, ends inclusive); Reset returns to the
+  current month. Outside month mode the month picker is replaced by a
+  full-width pill with the range and a close button ("Back to monthly view").
+  Lists load 100 rows at a time with an outlined "Load more" button so All time
+  never loads the whole history. Tapping search replaces the title with an inline
   field (back arrow, clear button) so no extra row appears. Search is
   case-insensitive "contains" over category, notes and amount (currency
-  symbol and separators ignored), within the selected month. Below it sits
+  symbol and separators ignored), run in SQL within the selected month. Below it sits
   only the full-width month picker (no profile selector; switch profiles from
   Home or Profile), then All/Income/Expense/Savings stadium-shaped pills with
   no checkmark that wrap rather than scroll when space is short.
   Transaction rows use 16px horizontal content padding with no additional
   vertical content padding: retain ListTile's intrinsic vertical spacing and
   touch targets rather than adding height around its existing layout.
-- Stats: actual total expenses, comparison against the previous full calendar
-  month, category breakdown, daily expense trend, and a factual encouragement
-  card. A compact monthly summary below the analytics shows income, expenses,
+- Stats shares Transactions' date range, single Type, category selection and
+  search (including the inline search field and filter sheet). Its header has
+  search and filter actions, the active-filter badge, and the same date/range
+  control, without a profile selector. Sort remains a list-only preference.
+  Home's month is independent; Home's overview/Other shortcut explicitly carries
+  its month into Stats.
+  Totals, category breakdowns and trend points come from profile-scoped SQL
+  aggregates, not the paginated transaction list or an all-history row stream.
+  Charts remain expense-only; Income/Savings filters show their filtered summary
+  totals and truthful empty expense charts.
+  Show a previous-full-calendar-month comparison only in Month mode, using the
+  same type/category/search restrictions. Custom range and All time replace the
+  comparison with "Expenses in the selected period."
+  Trends are daily for ranges up to 31 days, weekly up to 190 days, and monthly
+  beyond; All time uses the first/last matching transaction dates to choose.
+  Use local-calendar boundaries, zero-filled intermediate periods, localized
+  date labels/tooltips, year labels for monthly ticks, and exact monetary totals.
+  Keep the last loaded chart content while a new scope loads, without replacing
+  the whole screen with a spinner. Aggregate errors have an explicit retry action.
+  A compact monthly/period summary below the analytics shows income, expenses,
   savings, and remaining to allocate (income minus expenses minus savings).
   Preserve negative remainders and zero-income values; do not substitute an
   ambiguous "used" percentage or progress bar. Budget editing, percentages,
-  and bucket progress follow the summary. Hide the summary and show the
+  and bucket progress follow the summary only in Month mode, using the existing
+  full-month business rules and the explicit label
+  "Budget progress — full month, filters not applied." All time/custom scopes
+  hide targets/editing and show "Budget targets are available in Month view only."
+  Budget filtering remains deferred. Hide the summary and show the
   existing explicit error when totals exceed the supported range.
-- All views share the selected profile and calendar month. Savings and income
+- All views share the selected profile, but Home has its own calendar month.
+  Transactions and Stats share their detailed scope. Savings and income
   are excluded from expense charts. Archived categories remain in history.
 - Chart colors cycle through coral, sky, lavender, mint, and primary tokens.
   Category legends use three aligned columns: category left, amount centered,
