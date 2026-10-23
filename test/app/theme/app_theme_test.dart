@@ -83,6 +83,7 @@ void main() {
       for (final (foreground, background) in [
         (semantic.onIncomeContainer, semantic.incomeContainer),
         (semantic.onExpenseContainer, semantic.expenseContainer),
+        (semantic.onInfoContainer, semantic.infoContainer),
       ]) {
         final a = foreground.computeLuminance();
         final b = background.computeLuminance();

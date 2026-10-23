@@ -463,7 +463,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
           categories: categories.requireValue,
           money: _analyticsMoney,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
       ],
       if (_tab == 3) ...[
         ListTile(
@@ -499,7 +499,9 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
         ),
         const SizedBox(height: 16),
         Card(
+          margin: EdgeInsets.zero,
           child: SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             key: const Key('automatic-unused-savings'),
             title: const Text('Automatically save unused money'),
             subtitle: const Text(
@@ -603,8 +605,9 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             const Text(
               'No income this month. Budget limits are zero until income is recorded.',
             ),
-          for (final progress in summary.buckets)
+          for (final progress in summary.buckets) ...[
             Card(
+              margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -640,6 +643,8 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+          ],
           Text(
             'Unallocated expenses: ${_money(summary.unallocatedExpenseMinor)}',
           ),
@@ -649,75 +654,104 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
             'This rule has custom buckets. The current editor supports Needs/Wants/Savings only and will not overwrite it.',
           ),
       ],
-      if (_tab == 0 || _tab == 1) ...[
-        if (_tab == 0)
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Recent transactions',
-                  style: Theme.of(context).textTheme.titleMedium,
+      if (_tab == 0)
+        Card(
+          key: const Key('recent-transactions'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Recent transactions',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    if (monthly.isNotEmpty)
+                      TextButton(
+                        onPressed: () => setState(() => _tab = 1),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text('View all'),
+                      ),
+                  ],
                 ),
-              ),
-              if (_tab == 0 && monthly.isNotEmpty)
-                TextButton(
-                  onPressed: () => setState(() => _tab = 1),
-                  child: const Text('View all'),
-                ),
-            ],
-          ),
-        const SizedBox(height: 16),
-        if (_tab == 1) ...[
-          if (_searching) ...[
-            TextField(
-              controller: _search,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: 'Search transactions',
-                hintText: 'Category or notes',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  tooltip: 'Clear search',
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => setState(() => _search.clear()),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final type in [null, ...TransactionType.values])
-                ChoiceChip(
-                  label: Text(type?.label ?? 'All'),
-                  selected: _filter == type,
-                  onSelected: (_) => setState(() => _filter = type),
-                ),
-              PopupMenuButton<bool>(
-                tooltip: 'Sort transactions',
-                initialValue: _oldestFirst,
-                onSelected: (value) => setState(() => _oldestFirst = value),
-                itemBuilder: (_) => [
-                  CheckedPopupMenuItem(
-                    value: false,
-                    checked: !_oldestFirst,
-                    child: const Text('Newest first'),
+                const SizedBox(height: 16),
+                if (monthly.isEmpty)
+                  DashboardEmptyState(
+                    month: _month,
+                    onAdd: canAdd ? addTransaction : null,
                   ),
-                  CheckedPopupMenuItem(
-                    value: true,
-                    checked: _oldestFirst,
-                    child: const Text('Oldest first'),
+                for (var index = 0; index < visible.length; index++) ...[
+                  if (index > 0) const SizedBox(height: 8),
+                  _transactionCard(
+                    visible[index],
+                    categories.requireValue,
+                    names,
                   ),
                 ],
-                icon: const Icon(Icons.tune),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+        ),
+      if (_tab == 1) ...[
+        const SizedBox(height: 16),
+        if (_searching) ...[
+          TextField(
+            controller: _search,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: 'Search transactions',
+              hintText: 'Category or notes',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                tooltip: 'Clear search',
+                icon: const Icon(Icons.clear),
+                onPressed: () => setState(() => _search.clear()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final type in [null, ...TransactionType.values])
+              ChoiceChip(
+                label: Text(type?.label ?? 'All'),
+                selected: _filter == type,
+                onSelected: (_) => setState(() => _filter = type),
+              ),
+            PopupMenuButton<bool>(
+              tooltip: 'Sort transactions',
+              initialValue: _oldestFirst,
+              onSelected: (value) => setState(() => _oldestFirst = value),
+              itemBuilder: (_) => [
+                CheckedPopupMenuItem(
+                  value: false,
+                  checked: !_oldestFirst,
+                  child: const Text('Newest first'),
+                ),
+                CheckedPopupMenuItem(
+                  value: true,
+                  checked: _oldestFirst,
+                  child: const Text('Oldest first'),
+                ),
+              ],
+              icon: const Icon(Icons.tune),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         if (monthly.isEmpty)
           DashboardEmptyState(
             month: _month,
@@ -820,7 +854,7 @@ class _ProfileDashboardState extends ConsumerState<_ProfileDashboard> {
       icon: const Icon(Icons.delete_outline),
     );
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: _tab == 0 ? EdgeInsets.zero : const EdgeInsets.only(bottom: 8),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: CategoryAvatar(

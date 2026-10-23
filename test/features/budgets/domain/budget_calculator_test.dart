@@ -45,6 +45,51 @@ FinancialTransaction entry(
 
 void main() {
   const calculator = BudgetCalculator();
+  test(
+    'Custom savings target uses monthly income and scoped contributions',
+    () {
+      final standard = monthlyRule();
+      final rule = BudgetRule(
+        id: standard.id,
+        profileId: standard.profileId,
+        name: standard.name,
+        periodStart: standard.periodStart,
+        periodEnd: standard.periodEnd,
+        buckets: [
+          BudgetBucket(id: 'spending', name: 'Spending', allocationBps: 7500),
+          BudgetBucket(id: 'savings', name: 'Savings', allocationBps: 2500),
+        ],
+      );
+      final result = calculator.calculate(
+        rule: rule,
+        transactions: [
+          entry('income', 100000, TransactionType.income),
+          entry('expense', 10000, TransactionType.expense),
+          entry('saved', 5000, TransactionType.savings),
+          entry('other-profile', 90000, TransactionType.savings, profile: 'b'),
+          entry(
+            'next-month',
+            90000,
+            TransactionType.savings,
+            date: DateTime.utc(2026, 11),
+          ),
+          entry(
+            'previous-month',
+            90000,
+            TransactionType.savings,
+            date: DateTime.utc(2026, 9, 30),
+          ),
+        ],
+      );
+      final savings = result.buckets.last;
+      expect(result.savingsMinor, 5000);
+      expect(result.expenseMinor, 10000);
+      expect(savings.targetMinor, 25000);
+      expect(savings.spentMinor, 5000);
+      expect(savings.progress, 0.2);
+    },
+  );
+
   test('Savings transactions contribute to savings progress, not expenses', () {
     final result = calculator.calculate(
       rule: monthlyRule(),

@@ -83,8 +83,7 @@ void main() {
       await open(tester);
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(DashboardSummaryCard), findsOneWidget);
-      expect(find.text(r'-$0.00'), findsOneWidget);
-      expect(find.text(r'+$0.00'), findsOneWidget);
+      expect(find.byKey(const ValueKey('summary-savings')), findsOneWidget);
       expect(find.text('Hi, Personal!'), findsNothing);
       expect(find.text("Let's manage your money"), findsNothing);
       expect(find.byTooltip('Settings and tracker management'), findsNothing);
@@ -122,10 +121,15 @@ void main() {
   testWidgets('Summary arrows precede labels on the same row above amounts', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await open(tester);
     for (final (label, icon, amount) in [
       ('Expenses', Icons.call_made_rounded, r'-$0.00'),
       ('Income', Icons.call_received_rounded, r'+$0.00'),
+      ('Savings', Icons.savings_rounded, r'$0.00'),
     ]) {
       final card = find.byKey(ValueKey('summary-${label.toLowerCase()}'));
       final arrow = find.descendant(of: card, matching: find.byIcon(icon));
@@ -141,10 +145,123 @@ void main() {
         greaterThan(tester.getRect(title).bottom),
       );
       expect(tester.widget<Icon>(arrow).semanticLabel, isNull);
-      expect(tester.widget<Icon>(arrow).size, 24);
+      expect(tester.widget<Icon>(arrow).size, 20);
     }
+    final rects = [
+      for (final k in ['expenses', 'income', 'savings'])
+        tester.getRect(find.byKey(ValueKey('summary-$k'))),
+    ];
+    expect(rects[0].top, rects[1].top);
+    expect(rects[1].top, rects[2].top);
+    expect(rects[0].right, lessThan(rects[1].left));
+    expect(rects[1].right, lessThan(rects[2].left));
+    expect(rects[2].right, lessThanOrEqualTo(390));
     await close(tester);
   });
+
+  testWidgets('Home savings tile follows month and profile, no separate card', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await save('Income', TransactionType.income, 100000);
+      await save('Saved', TransactionType.savings, 5000);
+      await LocalProfileRepository(db).create(
+        const LocalProfile(
+          id: 'b',
+          name: 'Other profile',
+          currencyCode: 'USD',
+          currencyScale: 2,
+        ),
+      );
+      await LocalTransactionRepository(db).save(
+        FinancialTransaction(
+          id: 'other-savings',
+          profileId: 'b',
+          categoryId: 'investments',
+          amountMinor: 90000,
+          type: TransactionType.savings,
+          occurredAt: DateTime(today.year, today.month, 1),
+        ),
+      );
+    });
+    await open(tester);
+    final tile = find.byKey(const ValueKey('summary-savings'));
+    expect(
+      find.descendant(of: tile, matching: find.text(r'$50.00')),
+      findsOneWidget,
+    );
+    expect(find.text('Savings this month'), findsNothing);
+    await tester.runAsync(
+      () => save('More saved', TransactionType.savings, 5000),
+    );
+    await settle(tester);
+    expect(
+      find.descendant(of: tile, matching: find.text(r'$100.00')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Previous month'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: tile, matching: find.text(r'$0.00')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Next month'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Personal (USD)').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Other profile (USD)').last);
+    await settle(tester);
+    expect(
+      find.descendant(of: tile, matching: find.text(r'$900.00')),
+      findsOneWidget,
+    );
+    await close(tester);
+  });
+
+  testWidgets('Summary values fit one line each at 390px with Nunito', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final loader = FontLoader('Nunito')
+        ..addFont(rootBundle.load('assets/fonts/Nunito-Variable.ttf'));
+      await loader.load();
+      await save('Income', TransactionType.income, 1250000);
+      await save('Spend', TransactionType.expense, 85050);
+      await save('Saved', TransactionType.savings, 25000);
+    });
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await open(tester);
+    for (final (key, text) in [
+      ('expenses', r'-$850.50'),
+      ('income', r'+$12,500.00'),
+      ('savings', r'$250.00'),
+    ]) {
+      final tile = find.byKey(ValueKey('summary-$key'));
+      final value = find.descendant(of: tile, matching: find.text(text));
+      expect(tester.getSize(value).height, lessThan(30), reason: key);
+    }
+    expect(tester.takeException(), isNull);
+    await close(tester);
+  });
+
+  testWidgets(
+    'Summary stacks vertically on narrow width or large text without overflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await open(tester);
+      final a = tester.getRect(find.byKey(const ValueKey('summary-expenses')));
+      final b = tester.getRect(find.byKey(const ValueKey('summary-savings')));
+      expect(b.top, greaterThan(a.bottom));
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
 
   testWidgets(
     'Actual totals include savings, recent entries are newest first and View all opens filtered history',
@@ -302,6 +419,7 @@ void main() {
       });
       await open(tester);
       expect(find.textContaining('Monthly totals exceed'), findsOneWidget);
+      expect(find.byType(DashboardSummaryCard), findsNothing);
       expect(find.byKey(const Key('monthly-summary')), findsNothing);
       await tester.tap(find.byKey(const Key('dashboard-tab-2')));
       await tester.pumpAndSettle();
@@ -404,6 +522,8 @@ void main() {
       );
       await open(tester);
       await tester.scrollUntilVisible(find.text('Coffee'), 100);
+      await tester.ensureVisible(find.text('Coffee'));
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.delete_outline), findsNothing);
       await tester.tap(find.text('Coffee'));
       await tester.pumpAndSettle();
@@ -433,6 +553,62 @@ void main() {
         () => LocalTransactionRepository(db).watchTransactions('a').first,
       );
       expect(rows, isEmpty);
+      await close(tester);
+    },
+  );
+
+  testWidgets(
+    'Home groups three outlined preview rows inside the recent card',
+    (tester) async {
+      await tester.runAsync(() async {
+        for (var index = 0; index < 4; index++) {
+          await save(
+            'Entry $index',
+            TransactionType.expense,
+            1250,
+            day: index + 1,
+          );
+        }
+      });
+      await open(tester);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('recent-transactions')),
+        100,
+      );
+      final module = find.byKey(const Key('recent-transactions'));
+      final outer = tester.widget<Card>(module);
+      expect(outer.margin, EdgeInsets.zero);
+      expect((outer.child! as Padding).padding, const EdgeInsets.all(16));
+      expect(
+        find.descendant(of: module, matching: find.text('Recent transactions')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: module, matching: find.text('View all')),
+        findsOneWidget,
+      );
+      final rows = find.descendant(of: module, matching: find.byType(ListTile));
+      expect(rows, findsNWidgets(3));
+      final cards = find.descendant(of: module, matching: find.byType(Card));
+      expect(cards, findsNWidgets(3));
+      for (final card in tester.widgetList<Card>(cards)) {
+        expect(card.margin, EdgeInsets.zero);
+      }
+      final tiles = rows.evaluate().toList();
+      for (var index = 1; index < tiles.length; index++) {
+        expect(
+          tester.getRect(find.byWidget(tiles[index].widget)).top -
+              tester.getRect(find.byWidget(tiles[index - 1].widget)).bottom,
+          closeTo(8, 0.1),
+        );
+      }
+      await tester.ensureVisible(find.text('View all'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View all'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('recent-transactions')), findsNothing);
+      expect(find.text('Entry 3'), findsOneWidget);
+      expect(tester.takeException(), isNull);
       await close(tester);
     },
   );
@@ -470,6 +646,75 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'Dashboard cards follow content, empty-state and list-row spacing rules',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await open(tester);
+      void checkCards() {
+        for (final card in tester.widgetList<Card>(find.byType(Card))) {
+          expect(card.margin, EdgeInsets.zero);
+          if (card.child case final Padding padding) {
+            expect(
+              padding.padding,
+              card.key == const Key('dashboard-empty')
+                  ? const EdgeInsets.all(24)
+                  : (card.key.toString().contains('summary-') &&
+                        padding.padding == const EdgeInsets.all(12))
+                  ? const EdgeInsets.all(12)
+                  : const EdgeInsets.all(16),
+            );
+          }
+        }
+      }
+
+      checkCards();
+      await tester.scrollUntilVisible(find.byType(DashboardEmptyState), 200);
+      checkCards();
+      await tester.tap(find.byKey(const Key('dashboard-tab-3')));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const Key('automatic-unused-savings'));
+      await tester.scrollUntilVisible(toggle, 100);
+      expect(
+        tester.widget<SwitchListTile>(toggle).contentPadding,
+        const EdgeInsets.symmetric(horizontal: 16),
+      );
+      checkCards();
+      await tester.tap(find.byKey(const Key('dashboard-tab-2')));
+      await tester.pumpAndSettle();
+      checkCards();
+      await tester.scrollUntilVisible(find.text('Set monthly budget'), 200);
+      await tester.tap(find.text('Set monthly budget'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save budget'));
+      await settle(tester);
+      for (final label in [
+        'Needs (50.0%)',
+        'Wants (30.0%)',
+        'Savings (20.0%)',
+      ]) {
+        await tester.scrollUntilVisible(find.text(label), 100);
+        checkCards();
+        final cardFinder = find.ancestor(
+          of: find.text(label),
+          matching: find.byType(Card),
+        );
+        final card = tester.widget<Card>(cardFinder);
+        expect((card.child! as Padding).padding, const EdgeInsets.all(16));
+        expect(tester.getRect(cardFinder).left, closeTo(16, 0.1));
+        expect(
+          tester.getRect(cardFinder).right,
+          closeTo(tester.view.physicalSize.width - 16, 0.1),
+        );
+      }
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    },
+  );
 
   testWidgets(
     'Transactions searches category and notes, sorts, clears, and keeps type filters',
@@ -726,6 +971,8 @@ void main() {
     });
     await open(tester);
     await tester.scrollUntilVisible(find.text('Other'), 100);
+    await tester.ensureVisible(find.text('Other'));
+    await tester.pumpAndSettle();
     expect(
       tester.widget<PieChart>(find.byType(PieChart)).data.sections,
       hasLength(5),
@@ -796,6 +1043,7 @@ void main() {
           for (final (label, foreground, icon) in [
             ('Expenses', semantic.onExpenseContainer, Icons.call_made_rounded),
             ('Income', semantic.onIncomeContainer, Icons.call_received_rounded),
+            ('Savings', semantic.onInfoContainer, Icons.savings_rounded),
           ]) {
             final card = find.byKey(ValueKey('summary-${label.toLowerCase()}'));
             final texts = tester.widgetList<Text>(

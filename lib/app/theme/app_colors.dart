@@ -20,6 +20,7 @@ abstract final class AppColors {
   static const mintForeground = Color(0xFF176B42);
   static const sky = Color(0xFF5AB4FF);
   static const skyLight = Color(0xFFEBF6FF);
+  static const skyForeground = Color(0xFF1A67A8);
   static const lavender = Color(0xFFB590F8);
   static const lavenderLight = Color(0xFFF4EEFF);
 
@@ -61,6 +62,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.onExpenseContainer,
     required this.info,
     required this.infoContainer,
+    required this.onInfoContainer,
   });
 
   static const light = AppSemanticColors(
@@ -72,6 +74,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     onExpenseContainer: AppColors.coralForeground,
     info: AppColors.sky,
     infoContainer: AppColors.skyLight,
+    onInfoContainer: AppColors.skyForeground,
   );
 
   static const dark = AppSemanticColors(
@@ -83,6 +86,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     onExpenseContainer: AppColors.coral,
     info: AppColors.sky,
     infoContainer: AppColors.darkSurfaceWarm,
+    onInfoContainer: AppColors.sky,
   );
 
   final Color income;
@@ -93,6 +97,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color onExpenseContainer;
   final Color info;
   final Color infoContainer;
+  final Color onInfoContainer;
 
   @override
   AppSemanticColors copyWith({
@@ -104,6 +109,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? onExpenseContainer,
     Color? info,
     Color? infoContainer,
+    Color? onInfoContainer,
   }) => AppSemanticColors(
     income: income ?? this.income,
     incomeContainer: incomeContainer ?? this.incomeContainer,
@@ -113,6 +119,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     onExpenseContainer: onExpenseContainer ?? this.onExpenseContainer,
     info: info ?? this.info,
     infoContainer: infoContainer ?? this.infoContainer,
+    onInfoContainer: onInfoContainer ?? this.onInfoContainer,
   );
 
   @override
@@ -139,6 +146,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       )!,
       info: Color.lerp(info, other.info, t)!,
       infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
+      onInfoContainer: Color.lerp(onInfoContainer, other.onInfoContainer, t)!,
     );
   }
 }

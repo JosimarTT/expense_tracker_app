@@ -15,6 +15,9 @@ The local MVP now includes:
    optional notes, category selection, and date selection.
 3. A reactive monthly dashboard with income, expenses, net income, month
    navigation, explicit errors/retry, and profile-isolated transaction lists.
+   Home also shows actual monthly savings and progress against the selected
+   month's customized savings allocation. No target is assumed without a saved
+   savings bucket; zero targets show guidance instead of a percentage.
 4. An editable monthly Needs/Wants/Savings split (50/30/20 initially), expense
    category mappings, progress bars, overspending amounts, unallocated expenses,
    and a savings target. There is no bank balance or savings-transfer tracking.

@@ -203,15 +203,47 @@ Unlisted Material text roles are not additional design tokens.
 | 6 | External profile-name label to input; badge inner padding |
 | 8 | Standard label/control gap, quick-currency gap |
 | 10 | Notice icon/text gap; avatar vertical padding |
-| 12 | Avatar-card gap, list-row padding |
+| 12 | Avatar-card gap |
 | 14 | Notice padding |
-| 16 | Standard section gap; profile modal top padding |
+| 16 | Standard card padding and section gap; dashboard gutter; profile modal top padding |
 | 20 | Major profile section gap; currency picker padding |
 | 24 | Profile modal horizontal/bottom padding; page gutter baseline |
 | 32 | Large composition separation when needed |
 
 Use these values rather than arbitrary per-view increments. Page compositions may
 adapt gutters to available width, but must not compress controls below usability.
+
+### 6.1.1 Card spacing convention
+
+Standardize visible content insets, not identical padding properties on
+components with different intrinsic spacing:
+
+| Card composition | Internal spacing |
+|---|---|
+| Standard content: summaries, charts, statistics, budgets | 16px on all sides |
+| ListTile / SwitchListTile rows | 16px horizontal content padding; no added vertical content padding; preserve intrinsic vertical spacing |
+| Illustrated empty states | 24px on all sides |
+
+- Dashboard cards and section headers share a 16px page gutter, within the
+  existing centered maximum-width layout. Do not add implicit horizontal card
+  margins inside that gutter.
+- Related transaction rows have 8px separation. Standard dashboard cards have
+  16px separation; distinct sections use 24px. The Home summary row of
+  Expenses, Income and Savings is an explicit composition exception: three
+  equal cards with 8px gaps and 12px padding, 20px arrow/icon, `labelLarge`
+  label and 14px bold value (no FittedBox). It stacks vertically with 12px
+  gaps, 16px padding and full-size type below 340px width or above ~1.1x text
+  scale. Savings uses `skyForeground` (#1A67A8, 5.4:1) on `skyLight`, and
+  `sky` on the dark warm surface; it has no sign prefix.
+- Prefer zero card margins and explicit parent gaps. Transaction cards retain
+  their explicit 8px bottom margin to separate rows.
+- Preserve the 24px card radius, flat surfaces, touch targets, and text scaling.
+  Do not set fixed card heights or compact density to force identical heights.
+- Component-specific exceptions must be documented here or in their recipe,
+  not introduced as arbitrary per-view padding.
+
+Dashboard adoption is verified here; unrelated existing screens are not
+implicitly restyled by this convention.
 
 ### 6.2 Shape and size recipes
 
@@ -315,12 +347,30 @@ fonts do not replace this document's tokens or imply seeded user data.
 - Home: a single profile-selector/month-controls header without a separate
   greeting/avatar row; settings remain accessible through the Profile tab.
   Retain screen titles on Transactions, Stats, and Profile.
-  Follow with expense/income cards, spending overview
+  Follow with one row of expense/income/savings cards (savings target and
+  progress live in Stats), spending overview
   with category donut and legend, then the three latest transactions and View all.
   The Recent transactions header has no total-count badge.
+  Home's Recent transactions module encloses its heading, View all action,
+  and preview in one flat 24px-radius card with 16px padding. Individual
+  transactions retain their own subtle outlined surfaces, with zero margins
+  and explicit 8px gaps inside the module. This nested composition is an
+  approved grouping exception; do not add shadows or elevation. The full
+  Transactions view retains standalone row cards without an enclosing card.
   Home and Transactions end after their content without a generic motivational
   footer. Retain actionable empty-state guidance.
   Do not show a separate remaining-to-allocate card or budget action on Home.
+- Home savings uses actual savings transactions, not income minus expenses,
+  scoped to the selected profile and month. Show the saved amount, then an
+  accessible lavender progress bar against the saved budget's savings target,
+  the target amount, and the amount to go, target reached, or amount above target.
+  Clamp the bar at completion without hiding excess contributions. Use the
+  theme's information container, standard text roles, 16px padding, and 16px
+  gaps. Stack text so long amounts and larger text can wrap without clipping.
+  Without a savings bucket, show the actual amount and an explicit no-target
+  message; do not assume a default 20% allocation. For zero targets, omit the
+  bar and explain whether income is needed or the target amount is zero.
+  Hide this card alongside the summary when totals exceed the supported range.
 - Summary-card direction arrows sit immediately before the Expenses/Income
   labels in one compact row, with the amount below. Arrows indicate money
   direction, not a comparison or trend, and do not repeat the accessible label.

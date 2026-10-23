@@ -19,40 +19,58 @@ class DashboardSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final semantic = theme.extension<AppSemanticColors>()!;
-    final tiles = [
-      _SummaryMetric(
-        label: 'Expenses',
-        amount: '-${money(summary.expenseMinor)}',
-        icon: Icons.call_made_rounded,
-        background: semantic.expenseContainer,
-        accent: semantic.onExpenseContainer,
-      ),
-      _SummaryMetric(
-        label: 'Income',
-        amount: '+${money(summary.incomeMinor)}',
-        icon: Icons.call_received_rounded,
-        background: semantic.incomeContainer,
-        accent: semantic.onIncomeContainer,
-      ),
-    ];
     return Column(
       key: const Key('dashboard-summary'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 300 ||
-                MediaQuery.textScalerOf(context).scale(16) > 22) {
+            final stacked =
+                constraints.maxWidth < 340 ||
+                MediaQuery.textScalerOf(context).scale(16) > 18;
+            final tiles = [
+              _SummaryMetric(
+                label: 'Expenses',
+                amount: '-${money(summary.expenseMinor)}',
+                icon: Icons.call_made_rounded,
+                background: semantic.expenseContainer,
+                accent: semantic.onExpenseContainer,
+                compact: !stacked,
+              ),
+              _SummaryMetric(
+                label: 'Income',
+                amount: '+${money(summary.incomeMinor)}',
+                icon: Icons.call_received_rounded,
+                background: semantic.incomeContainer,
+                accent: semantic.onIncomeContainer,
+                compact: !stacked,
+              ),
+              _SummaryMetric(
+                label: 'Savings',
+                amount: money(summary.savingsMinor),
+                icon: Icons.savings_rounded,
+                background: semantic.infoContainer,
+                accent: semantic.onInfoContainer,
+                compact: !stacked,
+              ),
+            ];
+            if (stacked) {
               return Column(
-                children: [tiles[0], const SizedBox(height: 12), tiles[1]],
+                children: [
+                  for (var i = 0; i < tiles.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 12),
+                    tiles[i],
+                  ],
+                ],
               );
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 12),
-                Expanded(child: tiles[1]),
+                for (var i = 0; i < tiles.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(child: tiles[i]),
+                ],
               ],
             );
           },
@@ -69,46 +87,55 @@ class _SummaryMetric extends StatelessWidget {
     required this.icon,
     required this.background,
     required this.accent,
+    required this.compact,
   });
   final String label;
   final String amount;
   final IconData icon;
   final Color background;
   final Color accent;
+  final bool compact;
 
   @override
-  Widget build(BuildContext context) => Card(
-    key: ValueKey('summary-${label.toLowerCase()}'),
-    margin: EdgeInsets.zero,
-    color: background,
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: accent, size: 24),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(color: accent),
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Card(
+      key: ValueKey('summary-${label.toLowerCase()}'),
+      margin: EdgeInsets.zero,
+      color: background,
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 12 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: accent, size: compact ? 20 : 24),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    style:
+                        (compact ? textTheme.labelLarge : textTheme.titleMedium)
+                            ?.copyWith(color: accent),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            amount,
-            style: Theme.of(context).textTheme.headlineMedium
-                ?.copyWith(color: accent),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              amount,
+              style:
+                  (compact
+                          ? textTheme.titleMedium?.copyWith(fontSize: 14)
+                          : textTheme.headlineMedium)
+                      ?.copyWith(color: accent),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class DashboardEmptyState extends StatelessWidget {
